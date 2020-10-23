@@ -1,9 +1,8 @@
 #![deny(warnings)]
-extern crate stm32f7xx_hal as hal;
+use crate::types::{BaseID, DataFrame, ID};
 use crate::types::CPState;
 use crate::types::HVCAN;
 use core::cell::Cell;
-use hal::can::{BaseID, DataFrame, ID};
 
 use cortex_m::interrupt::{free, Mutex};
 

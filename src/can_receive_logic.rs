@@ -1,7 +1,5 @@
 #![deny(warnings)]
-extern crate stm32f7xx_hal as hal;
 use crate::types::*;
-use hal::can::CanFrame;
 
 
 pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: CPState) -> CPState {

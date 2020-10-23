@@ -1,8 +1,7 @@
 #![deny(warnings)]
-extern crate stm32f7xx_hal as hal;
 use crate::types::HVCAN;
 use crate::utils::checksum_calc;
-use hal::can::{BaseID, DataFrame, ID};
+use crate::types::{BaseID, DataFrame, ID};
 
 pub fn init(mut fifty_ms_counter: u8, hv_can: &HVCAN) -> u8 {
     let fifty_ms_checksum_count: u8 = fifty_ms_counter % 16;
@@ -53,7 +52,7 @@ pub fn p2(hv_can: &HVCAN, fifty_ms_checksum_count: u8) {
 }
 
 pub fn u7(hv_can: &HVCAN, fifty_ms_checksum_count: u8) {
-    // TODO: Triple check this.
+    // Checksum correct.
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut u7_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));

@@ -1,7 +1,6 @@
 #![deny(warnings)]
-extern crate stm32f7xx_hal as hal;
+#![allow(clippy::char_lit_as_u8)]
 use crate::types::*;
-use hal::can::{BaseID, DataFrame, ID};
 
 pub fn init(mut five_hunded_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVCAN) -> u8 {
     vvvm(hv_can);

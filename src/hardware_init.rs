@@ -1,6 +1,11 @@
 #![deny(warnings)]
-use cortex_m::peripheral::NVIC;
+#[cfg(feature="nucleo767zi")]
 extern crate stm32f7xx_hal as hal;
+
+#[cfg(feature="f4board")]
+extern crate stm32f4xx_hal as hal;
+
+use cortex_m::peripheral::NVIC;
 use hal::{interrupt, pac};
 
 pub fn init() {

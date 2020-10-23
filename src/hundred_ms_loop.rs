@@ -1,8 +1,6 @@
 #![deny(warnings)]
-extern crate stm32f7xx_hal as hal;
 use crate::types::*;
 use crate::utils::checksum_calc;
-use hal::can::{BaseID, DataFrame, ID};
 
 pub fn init(mut hundred_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVCAN) -> u8 {
     u2(hv_can);

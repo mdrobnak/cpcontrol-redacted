@@ -1,7 +1,6 @@
 #![deny(warnings)]
-extern crate stm32f7xx_hal as hal;
 use crate::types::HVCAN;
-use hal::can::{BaseID, DataFrame, ID};
+use crate::types::{BaseID, DataFrame, ID};
 use heapless::consts::*;
 use heapless::String;
 

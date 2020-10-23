@@ -24,6 +24,7 @@ pub fn serial_console(
     verbose_console: bool,
     print_header: bool,
     print_menu: bool,
+    time: rtcc::NaiveTime,
 ) {
     const NO_ATTRIB: &str = "\x1B[0m";
 
@@ -58,24 +59,23 @@ pub fn serial_console(
         uprintln!(tx, "\x1B[34mBlue Solid{}", NO_ATTRIB);
         uprint!(tx, "\x1B[22HState: {} \x1B[0K", cp_state.charge_state);
         uprintln!(tx, "\x1B[22;30HCAN Loop Status: Probably Fine.");
-    } else {
-        if ten_ms_counter % 50 == 0 {
-            if print_menu {
-                print_header_to_serial(tx, verbose_console);
-            } else if print_header {
-                uprintln!(
-                    tx,
-                    "Press v to enable verbose statistics. Press m for a list of commands."
-                );
-            }
-            uprint!(tx, "State: {}  Charging: ", cp_state.charge_state);
-            if cp_state.charger_relay_enabled {
-                uprint!(tx, "Enabled   ");
-            } else {
-                uprint!(tx, "Disabled  ");
-            }
-            uprintln!(tx, "Uptime: {}", sys_ticks);
+        uprintln!(tx, "\x1B[23HTime: {}", time);
+    } else if ten_ms_counter % 50 == 0 {
+        if print_menu {
+            print_header_to_serial(tx, verbose_console);
+        } else if print_header {
+            uprintln!(
+                tx,
+                "Press v to enable verbose statistics. Press m for a list of commands."
+            );
         }
+        uprint!(tx, "State: {}  Charging: ", cp_state.charge_state);
+        if cp_state.charger_relay_enabled {
+            uprint!(tx, "Enabled   ");
+        } else {
+            uprint!(tx, "Disabled  ");
+        }
+        uprintln!(tx, "Uptime: {}", sys_ticks);
     }
 }
 pub fn print_header_to_serial(tx: &mut SerialConsoleOutput, verbose_console: bool) {

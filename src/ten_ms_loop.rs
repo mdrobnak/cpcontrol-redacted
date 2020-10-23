@@ -1,8 +1,6 @@
 #![deny(warnings)]
 use crate::serial_console::serial_console;
-extern crate stm32f7xx_hal as hal;
 use crate::types::*;
-use hal::can::{BaseID, DataFrame, ID};
 
 pub fn init(
     mut tx: &mut SerialConsoleOutput,
@@ -10,6 +8,7 @@ pub fn init(
     elapsed: u32,
     mut ten_ms_counter: u16,
     hv_can: &HVCAN,
+    time: rtcc::NaiveTime,
 ) -> u16 {
     u1(ten_ms_counter, hv_can);
     ccaa(hv_can, &mut cp_state);
@@ -31,6 +30,7 @@ pub fn init(
         cp_state.verbose_stats,
         ten_ms_counter % 3000 == 0 || cp_state.quiet_to_verbose,
         cp_state.print_menu_request,
+        time,
     );
     if ten_ms_counter < 65535 {
         ten_ms_counter = ten_ms_counter + 1;

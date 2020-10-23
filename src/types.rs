@@ -1,14 +1,14 @@
 #![deny(warnings)]
+#[cfg(feature = "nucleo767zi")]
+extern crate stm32f7xx_hal as hal;
+
+#[cfg(feature = "f4board")]
+extern crate stm32f4xx_hal as hal;
+
 use arraydeque::{ArrayDeque, Wrapping};
 use core::fmt::Display;
 use heapless::consts::*;
 use heapless::String;
-extern crate stm32f7xx_hal as hal;
-use hal::can::Can;
-use hal::gpio::gpiod::{PD0, PD1};
-use hal::gpio::Alternate;
-use hal::gpio::AF9;
-use hal::pac::CAN1;
 
 pub enum DoorStateEnum {
     DoorIdle = 0,
@@ -144,5 +144,43 @@ impl CPState {
     }
 }
 
-pub type HVCAN = Can<CAN1, (PD1<Alternate<AF9>>, PD0<Alternate<AF9>>)>;
-pub type SerialConsoleOutput = stm32f7xx_hal::serial::Tx<stm32f7xx_hal::pac::USART3>;
+// Generic type abstractions
+// Why? Remove reference to hal, so that it does not need to be included in many spots with
+// conditional code around it.
+pub type BaseID = hal::can::BaseID;
+pub type CanFrame = hal::can::CanFrame;
+pub type DataFrame = hal::can::DataFrame;
+pub type ID = hal::can::ID;
+
+// HW specific type abstractions
+#[cfg(feature = "nucleo767zi")]
+mod abstractions {
+    extern crate stm32f7xx_hal as hal;
+    use hal::can::Can;
+    use hal::gpio::gpiod::{PD0, PD1};
+    use hal::gpio::gpiog::PG2;
+    use hal::gpio::AF9;
+    use hal::gpio::{Alternate, Floating, Input};
+    use hal::pac::CAN1;
+    pub type HVCAN = Can<CAN1, (PD1<Alternate<AF9>>, PD0<Alternate<AF9>>)>;
+    pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART3>;
+    pub type FaultLinePin = PG2<Input<Floating>>;
+}
+
+#[cfg(feature = "f4board")]
+mod abstractions {
+    extern crate stm32f4xx_hal as hal;
+    use hal::can::Can;
+    use hal::gpio::gpiob::{PB8, PB9};
+    use hal::gpio::gpiog::PG2;
+    use hal::gpio::AF9;
+    use hal::gpio::{Alternate, Floating, Input};
+    use hal::pac::CAN1;
+    pub type HVCAN = Can<CAN1, (PB9<Alternate<AF9>>, PB8<Alternate<AF9>>)>;
+    pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART2>;
+    pub type FaultLinePin = PG2<Input<Floating>>;
+}
+
+pub type HVCAN = abstractions::HVCAN;
+pub type SerialConsoleOutput = abstractions::SerialConsoleOutput;
+pub type FaultLinePin = abstractions::FaultLinePin;
