@@ -171,14 +171,14 @@ mod abstractions {
 mod abstractions {
     extern crate stm32f4xx_hal as hal;
     use hal::can::Can;
-    use hal::gpio::gpiob::{PB8, PB9};
-    use hal::gpio::gpiog::PG2;
+    use hal::gpio::gpiob::{PB3, PB8, PB9};
     use hal::gpio::AF9;
     use hal::gpio::{Alternate, Floating, Input};
     use hal::pac::CAN1;
     pub type HVCAN = Can<CAN1, (PB9<Alternate<AF9>>, PB8<Alternate<AF9>>)>;
     pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART2>;
-    pub type FaultLinePin = PG2<Input<Floating>>;
+    pub type FaultLinePin = PB3<Input<Floating>>;
+    // PB5 is output.
 }
 
 pub type HVCAN = abstractions::HVCAN;

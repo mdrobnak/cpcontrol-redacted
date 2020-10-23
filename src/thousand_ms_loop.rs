@@ -1,7 +1,5 @@
 #![deny(warnings)]
-use crate::types::{BaseID, DataFrame, ID};
-use crate::types::CPState;
-use crate::types::HVCAN;
+use crate::types::{BaseID, CPState, DataFrame, HVCAN, ID};
 use core::cell::Cell;
 
 use cortex_m::interrupt::{free, Mutex};

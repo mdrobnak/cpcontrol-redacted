@@ -1,7 +1,7 @@
 #![deny(warnings)]
 use crate::types::HVCAN;
-use crate::utils::checksum_calc;
 use crate::types::{BaseID, DataFrame, ID};
+use crate::utils::checksum_calc;
 
 pub fn init(mut fifty_ms_counter: u8, hv_can: &HVCAN) -> u8 {
     let fifty_ms_checksum_count: u8 = fifty_ms_counter % 16;

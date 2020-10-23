@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 #![deny(unsafe_code)]
 #![no_main]
 #![no_std]
@@ -99,34 +99,51 @@ fn main() -> ! {
 
     // GPIO G for Fault and Latch I/O (PG2 for Fault (Read), and PG3 for Latch (Push-Pull High
     // output)).
+    #[cfg(feature = "nucleo767zi")]
     let gpiog = p.GPIOG.split();
+    #[cfg(feature = "nucleo767zi")]
     let mut fault_in = gpiog.pg2.into_floating_input();
     #[cfg(feature = "nucleo767zi")]
     fault_in.make_interrupt_source(&mut syscfg, &mut p.RCC);
+    #[cfg(feature = "nucleo767zi")]
+    let mut latch_out = gpiog.pg3.into_push_pull_output();
+
+    // GPIO B for Fault and Latch I/O (PB3 for Fault (Read), and PB5 for Latch (Push-Pull High
+    // output)). Also CAN Bus 1.
+    #[cfg(feature = "f4board")]
+    let gpiob = p.GPIOB.split();
+    #[cfg(feature = "f4board")]
+    let mut fault_in = gpiob.pb3.into_floating_input();
+
     #[cfg(feature = "f4board")]
     fault_in.make_interrupt_source(&mut syscfg);
+    #[cfg(feature = "f4board")]
+    let mut latch_out = gpiob.pb5.into_push_pull_output();
+
+    // Set trigger and enable interrupt on all boards.
     fault_in.trigger_on_edge(&mut exti, Edge::RISING_FALLING);
     fault_in.enable_interrupt(&mut exti);
-    let mut latch_out = gpiog.pg3.into_push_pull_output();
 
     // GPIO D for CAN (PD0,1) and USART3 (PD8,9) on STM32F767
     #[cfg(feature = "nucleo767zi")]
     let gpiod = p.GPIOD.split();
 
     // Freeze RCC and System Clocks *After* setting EXTI items.
+    // Run both boards at 180 as we don't need the extra 36MHz speed.
     let mut rcc = p.RCC.constrain();
     #[cfg(feature = "nucleo767zi")]
-    let clocks = rcc.cfgr.sysclk(216.mhz()).freeze();
+    let clocks = rcc.cfgr.sysclk(180.mhz()).freeze();
     #[cfg(feature = "f4board")]
     let clocks = rcc.cfgr.sysclk(180.mhz()).freeze();
 
     // RTC?
+    /*
     #[cfg(feature = "nucleo767zi")]
     let mut rtc = Rtc::new(
         p.RTC,
         255,
         127,
-        false,
+        true,
         &mut rcc.apb1,
         &mut rcc.bdcr,
         &mut p.PWR,
@@ -135,7 +152,7 @@ fn main() -> ! {
     let datetime = NaiveDate::from_ymd(2018, 8, 20).and_hms(19, 59, 58);
     #[cfg(feature = "nucleo767zi")]
     rtc.set_datetime(&datetime).unwrap();
-
+    */
     // AF7 -> Alternate Function 7 -> USART for PD8/9.
     // This is totally board specific, and need to figure out
     // how to make this more generic.
@@ -166,7 +183,7 @@ fn main() -> ! {
     let serial = Serial::usart2(
         p.USART2,
         (tx_pin, rx_pin),
-        Config::default().baudrate(115200.bps()),
+        Config::default().baudrate(230400.bps()),
         clocks,
     )
     .unwrap();
@@ -217,19 +234,11 @@ fn main() -> ! {
     let mut thousand_ms_counter: u8 = 0;
 
     // Set up CAN shit.
-    // Bit Timing for 216MHz:
-    #[cfg(feature = "nucleo767zi")]
-    const BIT_TIMING: CanBitTiming = CanBitTiming {
-        prescaler: 5, // 6 (6, 1, 15, 2 -> 5, 0, 14 , 1)   --- 48 is (6 , 1, 13, 2 -> 5, 0, 12,1)
-        sjw: 0,       // CAN_SJW_1TQ
-        bs1: 14,      // CAN_BS1_15TQ
-        bs2: 1,       // CAN_BS2_2TQ
-    };
-
-    // Bit Timing for 180MHz:
+    // Bit Timing for 180MHz System Clock
+    // (45MHz APB1)
     #[cfg(feature = "f4board")]
     const BIT_TIMING: CanBitTiming = CanBitTiming {
-        prescaler: 4, // 6
+        prescaler: 4, // 5
         sjw: 0,       // CAN_SJW_1TQ
         bs1: 14,      // CAN_BS1_15TQ
         bs2: 1,       // CAN_BS2_2TQ
@@ -244,7 +253,7 @@ fn main() -> ! {
         rflm: false,
         txfp: false,
         // TODO - update CAN impl to calculate these
-        /// Control CAN bus is configured for 500K
+        // HV CAN bus is configured for 500K
         bit_timing: BIT_TIMING,
     };
 
@@ -253,8 +262,6 @@ fn main() -> ! {
     #[cfg(feature = "nucleo767zi")]
     let can1_rx = gpiod.pd0.into_alternate_af9();
 
-    #[cfg(feature = "f4board")]
-    let gpiob = p.GPIOB.split();
     #[cfg(feature = "f4board")]
     let can1_tx = gpiob.pb9.into_alternate_af9();
     #[cfg(feature = "f4board")]
@@ -375,10 +382,36 @@ fn TIM2() {
     });
 }
 
+#[cfg(feature = "nucleo767zi")]
 #[interrupt]
 fn EXTI2() {
     // This is going to fire for all pins associated with this interrupt, which is going to be all
     // of them ending in 2 - PA2,PB2,...PG2, etc. So avoid using any more pins with the end in 2
+    // until it is known how to differentiate between them.
+    // Answer: "using EXTI_PR you have to detect which pin generated interrupt"
+    free(|cs| {
+        match FAULT_LINE.borrow(cs).borrow_mut().as_mut() {
+            // Clear the push button interrupt
+            Some(b) => {
+                b.clear_interrupt_pending_bit();
+                if b.is_high().unwrap_or(false) {
+                    SEMAPHORE.borrow(cs).set(true);
+                } else {
+                    SEMAPHORE.borrow(cs).set(false);
+                }
+            }
+
+            // This should never happen
+            None => (),
+        }
+    });
+}
+
+#[cfg(feature = "f4board")]
+#[interrupt]
+fn EXTI3() {
+    // This is going to fire for all pins associated with this interrupt, which is going to be all
+    // of them ending in 3 - PA3,PB3,...PG2, etc. So avoid using any more pins with the end in 2
     // until it is known how to differentiate between them.
     // Answer: "using EXTI_PR you have to detect which pin generated interrupt"
     free(|cs| {
