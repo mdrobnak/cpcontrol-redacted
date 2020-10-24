@@ -130,11 +130,22 @@ fn main() -> ! {
 
     // Freeze RCC and System Clocks *After* setting EXTI items.
     // Run both boards at 180 as we don't need the extra 36MHz speed.
+    // Enable the HSE 8MHz crystal on both boards. F4 board is impossible to use without it.
+    // F7 board is marginally better, but consistency is good.
     let mut rcc = p.RCC.constrain();
     #[cfg(feature = "nucleo767zi")]
-    let clocks = rcc.cfgr.sysclk(180.mhz()).freeze();
+    let clocks = rcc
+        .cfgr
+        .hse(hal::rcc::HSEClock {
+            freq: 8_000_000,
+            mode: hal::rcc::HSEClockMode::Oscillator,
+        })
+        .sysclk(180.mhz())
+        .freeze();
     #[cfg(feature = "f4board")]
-    let clocks = rcc.cfgr.sysclk(180.mhz()).freeze();
+    let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(180.mhz()).freeze();
+    #[cfg(feature = "prodboard")]
+    let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(160.mhz()).freeze();
 
     // RTC?
     /*
@@ -233,17 +244,29 @@ fn main() -> ! {
     let mut previous_1000_ms_ts = 0;
     let mut thousand_ms_counter: u8 = 0;
 
-    // Set up CAN shit.
+    // Set up CAN bit timing.
     // Bit Timing for 180MHz System Clock
     // (45MHz APB1)
-    #[cfg(feature = "f4board")]
+    // CAN_BTR: 0x001e0004
+    #[cfg(any(feature = "f4board", feature = "nucleo767zi"))]
     const BIT_TIMING: CanBitTiming = CanBitTiming {
-        prescaler: 4, // 5
+        prescaler: 4, // Prescaler: 5
         sjw: 0,       // CAN_SJW_1TQ
         bs1: 14,      // CAN_BS1_15TQ
         bs2: 1,       // CAN_BS2_2TQ
     };
-    pub const CONTROL_CAN_CONFIG: CanConfig = CanConfig {
+
+    // (40MHz APB1 for 160MHz clock)
+    // CAN_BTR: 0x001c0004
+    #[cfg(feature = "prodboard")]
+    const BIT_TIMING: CanBitTiming = CanBitTiming {
+        prescaler: 4, // Prescaler: 5
+        sjw: 0,       // CAN_SJW_1TQ
+        bs1: 12,      // CAN_BS1_13TQ
+        bs2: 1,       // CAN_BS2_2TQ
+    };
+
+    pub const HV_CAN_CONFIG: CanConfig = CanConfig {
         loopback_mode: false,
         silent_mode: false,
         ttcm: false,
@@ -267,13 +290,8 @@ fn main() -> ! {
     #[cfg(feature = "f4board")]
     let can1_rx = gpiob.pb8.into_alternate_af9();
 
-    let hv_can = Can::can1(
-        p.CAN1,
-        (can1_tx, can1_rx),
-        &mut rcc.apb1,
-        &CONTROL_CAN_CONFIG,
-    )
-    .expect("Failed to configure control CAN (CAN1)");
+    let hv_can = Can::can1(p.CAN1, (can1_tx, can1_rx), &mut rcc.apb1, &HV_CAN_CONFIG)
+        .expect("Failed to configure HV CAN (CAN1)");
     let can_filter: CanFilterConfig = CanFilterConfig::default();
     hv_can.configure_filter(&can_filter).ok();
 
@@ -354,6 +372,7 @@ fn main() -> ! {
         if (elapsed - previous_1000_ms_ts) >= THOUSAND_MS {
             previous_1000_ms_ts = elapsed;
             if !cp_state.cp_init || cp_state.charger_relay_enabled {
+                //            if !cp_state.latch_enabled {
                 // If the relay is enabled, this value should be low.
                 // If the fault line is active (and therefore cp_init is false), this should be
                 // low.

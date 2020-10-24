@@ -45,18 +45,22 @@ pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: CPState) -> CPStat
 
                 {
                     cp_state.charge_state = ChargeStateEnum::ChargePortError;
-
                 }
             }
             ChargeStateEnum::ACBlocked => {
                 // States allowed - wait for comms, proxdetect, idle
                 if (id == 0x00F) && (data[4] == 0x00) {
-                    cp_state.charge_state = ChargeStateEnum::WaitForComms;
-                } else if (id == 0x00F) && ((data[0] == 0x00) || (data[0] == 0x00)) {
-                    cp_state.charge_state = ChargeStateEnum::ChargeIdle;
 
+                    cp_state.charge_state = ChargeStateEnum::WaitForComms;
+                } else if (id == 0x00F) && (data[0] & 0x00) == 0x00 {
+
+                    cp_state.charge_state = ChargeStateEnum::WaitForComms;
+                } else if (id == 0x00F) && data[0] == 0x00 {
+                    cp_state.charge_state = ChargeStateEnum::ChargeIdle;
+                } else if (id == 0x00F) && data[0] == 0x00 {
+                    cp_state.charge_state = ChargeStateEnum::ChargePortError;
                 }
-                if (id == 0x00F) && ((data[0] & 0x08) == 0x00)
+                if (id == 0x00F) && ((data[0] & 0x00) == 0x00)
 
                 {
 
@@ -66,18 +70,21 @@ pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: CPState) -> CPStat
                 // Comms here can be either SWCAN, or standard charging.
                 // Standard charging will sit in Wait Request until current is non-zero.
                 // SWCAN will start nearly immediately if auto start...
-                if (id == 0x00F) && ((data[0] & 0x10) == 0x00)
+                if (id == 0x00F) && ((data[0] & 0x00) == 0x00)
 
                 {
 
                 }
-                if (id == 0x00F) && ((data[4] & 0x20) == 0x00)
+                if (id == 0x00F) && ((data[4] & 0x00) == 0x00) {
 
-                {
                     cp_state.charge_state = ChargeStateEnum::ContactorWaitRequest;
-                } else if (id == 0x00F) && ((data[0] == 0x00) || (data[0] == 0x00)) {
-                    cp_state.charge_state = ChargeStateEnum::ChargeIdle;
+                } else if (id == 0x00F) && data[3] != 0x00 {
 
+                    cp_state.charge_state = ChargeStateEnum::ContactorWaitRequest;
+                } else if (id == 0x00F) && data[0] == 0x00 {
+                    cp_state.charge_state = ChargeStateEnum::ChargeIdle;
+                } else if (id == 0x00F) && data[0] == 0x00 {
+                    cp_state.charge_state = ChargeStateEnum::ChargePortError;
                 }
             }
             ChargeStateEnum::ContactorWaitRequest => {
@@ -89,7 +96,8 @@ pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: CPState) -> CPStat
 
 
                 // FIXME : Handle DC better.
-                if (id == 0x00F) && ((data[4] & 0xC0) == 0x00) && (data[1] != 0x00)
+                // AC is AC here at this point, it seems.
+                if (id == 0x00F) && ((data[4] & 0x00) == 0x00) && (data[1] != 0x00)
                 // Charge current set, make contactor request
                 {
                     cp_state.contactor_request_state =
@@ -98,7 +106,7 @@ pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: CPState) -> CPStat
 
 
                 }
-                if (id == 0x00F) && ((data[4] & 0xC0) == 0x00) && (data[1] != 0x00)
+                if (id == 0x00F) && ((data[4] & 0x00) == 0x00) && (data[1] != 0x00)
                 // Charge current set, make contactor request
                 {
                     cp_state.contactor_request_state =
@@ -132,14 +140,14 @@ pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: CPState) -> CPStat
             }
             ChargeStateEnum::ContactorFixed => {
                 // If EVSE Request, enable the relay.
-                if (id == 0x00F) && ((data[0] & 0x02) == 0x00) {
+                if (id == 0x00F) && ((data[0] & 0x00) == 0x00) {
                     if cp_state.charger_type == ChargerTypeEnum::AC {
                         cp_state.charger_relay_enabled = true;
                         cp_state.desired_cp_led_state = LEDStateEnum::GreenBlink;
                     } else if cp_state.charger_type == ChargerTypeEnum::DC {
                     }
                 }
-                if (id == 0x00F) && ((data[0] & 0x04) == 0x00) {
+                if (id == 0x00F) && ((data[0] & 0x00) == 0x00) {
                     // Disable...
                     cp_state.charger_relay_enabled = false;
                     cp_state.charge_state = ChargeStateEnum::StopCharge;
