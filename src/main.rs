@@ -35,20 +35,18 @@ use hal::serial;
 #[cfg(feature = "nucleo767zi")]
 use rtcc::Rtcc;
 
-#[cfg(feature = "f4board")]
+#[cfg(any(feature = "nucleof446re", feature = "production",))]
 extern crate stm32f4xx_hal as hal;
-#[cfg(feature = "f4board")]
-use hal::serial::config::Config;
 
 use hal::{
     interrupt, pac,
     prelude::*,
-    serial::Serial,
     timer::{Event, Timer},
 };
 
 // CP ECU Signal Input
-use hal::gpio::{Edge, ExtiPin};
+// Used to clear the pending interrupt bit in the interrupt handler.
+use hal::gpio::ExtiPin;
 
 // Elapsed_MS stuff...
 use core::cell::{Cell, RefCell};
@@ -56,9 +54,6 @@ use core::ops::DerefMut;
 use cortex_m::interrupt::{free, Mutex};
 
 // CAN
-use hal::can::Can;
-use hal::can::CanBitTiming;
-use hal::can::CanConfig;
 use hal::can::CanFilterConfig;
 use hal::can::RxFifo;
 
@@ -88,137 +83,30 @@ static FAULT_LINE: Mutex<RefCell<Option<FaultLinePin>>> = Mutex::new(RefCell::ne
 
 #[entry]
 fn main() -> ! {
-    // Unwrap the PAC crate.
-    // For F7, this needs to be writable. For F4 not.
-    #[cfg(feature = "nucleo767zi")]
-    let mut p = pac::Peripherals::take().unwrap();
-    #[cfg(feature = "f4board")]
-    let p = pac::Peripherals::take().unwrap();
-    let mut syscfg = p.SYSCFG;
-    let mut exti = p.EXTI;
+    // Hardware to initialize:
+    // Fault Input
+    // Latch Output
+    // CAN Tx, Rx
+    // Clocks
+    // Serial port
+    // TODO: RTC
+    // TIM2 SysTick
 
-    // GPIO G for Fault and Latch I/O (PG2 for Fault (Read), and PG3 for Latch (Push-Pull High
-    // output)).
-    #[cfg(feature = "nucleo767zi")]
-    let gpiog = p.GPIOG.split();
-    #[cfg(feature = "nucleo767zi")]
-    let mut fault_in = gpiog.pg2.into_floating_input();
-    #[cfg(feature = "nucleo767zi")]
-    fault_in.make_interrupt_source(&mut syscfg, &mut p.RCC);
-    #[cfg(feature = "nucleo767zi")]
-    let mut latch_out = gpiog.pg3.into_push_pull_output();
+    let (fault_in, mut latch_out, hv_can, serial, timer) = cpcontrol::hardware_init::init_devices();
 
-    // GPIO B for Fault and Latch I/O (PB3 for Fault (Read), and PB5 for Latch (Push-Pull High
-    // output)). Also CAN Bus 1.
-    #[cfg(feature = "f4board")]
-    let gpiob = p.GPIOB.split();
-    #[cfg(feature = "f4board")]
-    let mut fault_in = gpiob.pb3.into_floating_input();
-
-    #[cfg(feature = "f4board")]
-    fault_in.make_interrupt_source(&mut syscfg);
-    #[cfg(feature = "f4board")]
-    let mut latch_out = gpiob.pb5.into_push_pull_output();
-
-    // Set trigger and enable interrupt on all boards.
-    fault_in.trigger_on_edge(&mut exti, Edge::RISING_FALLING);
-    fault_in.enable_interrupt(&mut exti);
-
-    // GPIO D for CAN (PD0,1) and USART3 (PD8,9) on STM32F767
-    #[cfg(feature = "nucleo767zi")]
-    let gpiod = p.GPIOD.split();
-
-    // Freeze RCC and System Clocks *After* setting EXTI items.
-    // Run both boards at 180 as we don't need the extra 36MHz speed.
-    // Enable the HSE 8MHz crystal on both boards. F4 board is impossible to use without it.
-    // F7 board is marginally better, but consistency is good.
-    let mut rcc = p.RCC.constrain();
-    #[cfg(feature = "nucleo767zi")]
-    let clocks = rcc
-        .cfgr
-        .hse(hal::rcc::HSEClock {
-            freq: 8_000_000,
-            mode: hal::rcc::HSEClockMode::Oscillator,
-        })
-        .sysclk(180.mhz())
-        .freeze();
-    #[cfg(feature = "f4board")]
-    let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(180.mhz()).freeze();
-    #[cfg(feature = "prodboard")]
-    let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(160.mhz()).freeze();
-
-    // RTC?
-    /*
-    #[cfg(feature = "nucleo767zi")]
-    let mut rtc = Rtc::new(
-        p.RTC,
-        255,
-        127,
-        true,
-        &mut rcc.apb1,
-        &mut rcc.bdcr,
-        &mut p.PWR,
-    );
-    #[cfg(feature = "nucleo767zi")]
-    let datetime = NaiveDate::from_ymd(2018, 8, 20).and_hms(19, 59, 58);
-    #[cfg(feature = "nucleo767zi")]
-    rtc.set_datetime(&datetime).unwrap();
-    */
-    // AF7 -> Alternate Function 7 -> USART for PD8/9.
-    // This is totally board specific, and need to figure out
-    // how to make this more generic.
-    #[cfg(feature = "nucleo767zi")]
-    let tx_pin = gpiod.pd8.into_alternate_af7();
-    #[cfg(feature = "nucleo767zi")]
-    let rx_pin = gpiod.pd9.into_alternate_af7();
-
-    // Nucleo F767 Serial
-    #[cfg(feature = "nucleo767zi")]
-    let serial = Serial::new(
-        p.USART3,
-        (tx_pin, rx_pin),
-        clocks,
-        serial::Config {
-            baud_rate: 230_400.bps(),
-            oversampling: serial::Oversampling::By16,
-            character_match: None,
-        },
-    );
-    #[cfg(feature = "f4board")]
-    let gpioa = p.GPIOA.split();
-    #[cfg(feature = "f4board")]
-    let tx_pin = gpioa.pa2.into_alternate_af7();
-    #[cfg(feature = "f4board")]
-    let rx_pin = gpioa.pa3.into_alternate_af7();
-    #[cfg(feature = "f4board")]
-    let serial = Serial::usart2(
-        p.USART2,
-        (tx_pin, rx_pin),
-        Config::default().baudrate(230400.bps()),
-        clocks,
-    )
-    .unwrap();
-
-    // 1000 Hz Timer (1ms)
-    #[cfg(feature = "nucleo767zi")]
-    let mut timer = Timer::tim2(p.TIM2, 1.khz(), clocks, &mut rcc.apb1);
-
-    #[cfg(feature = "f4board")]
-    let mut timer = Timer::tim2(p.TIM2, 1.khz(), clocks);
-
-    timer.listen(Event::TimeOut);
-
-    // Configure interrupt related items
+    // Interrupts / Mutexes
     free(|cs| {
         TIMER_TIM2.borrow(cs).replace(Some(timer));
     });
     free(|cs| {
         FAULT_LINE.borrow(cs).replace(Some(fault_in));
     });
-    // Enable interrupts
-    cpcontrol::hardware_init::init();
+    cpcontrol::hardware_init::enable_interrupts();
 
     let (mut tx, mut rx) = serial.split();
+
+    let can_filter: CanFilterConfig = CanFilterConfig::default();
+    hv_can.configure_filter(&can_filter).ok();
 
     const TEN_MS: u32 = 10;
     let mut previous_10_ms_ts = 0;
@@ -243,57 +131,6 @@ fn main() -> ! {
     const THOUSAND_MS: u32 = 1000;
     let mut previous_1000_ms_ts = 0;
     let mut thousand_ms_counter: u8 = 0;
-
-    // Set up CAN bit timing.
-    // Bit Timing for 180MHz System Clock
-    // (45MHz APB1)
-    // CAN_BTR: 0x001e0004
-    #[cfg(any(feature = "f4board", feature = "nucleo767zi"))]
-    const BIT_TIMING: CanBitTiming = CanBitTiming {
-        prescaler: 4, // Prescaler: 5
-        sjw: 0,       // CAN_SJW_1TQ
-        bs1: 14,      // CAN_BS1_15TQ
-        bs2: 1,       // CAN_BS2_2TQ
-    };
-
-    // (40MHz APB1 for 160MHz clock)
-    // CAN_BTR: 0x001c0004
-    #[cfg(feature = "prodboard")]
-    const BIT_TIMING: CanBitTiming = CanBitTiming {
-        prescaler: 4, // Prescaler: 5
-        sjw: 0,       // CAN_SJW_1TQ
-        bs1: 12,      // CAN_BS1_13TQ
-        bs2: 1,       // CAN_BS2_2TQ
-    };
-
-    pub const HV_CAN_CONFIG: CanConfig = CanConfig {
-        loopback_mode: false,
-        silent_mode: false,
-        ttcm: false,
-        abom: true,
-        awum: false,
-        nart: false,
-        rflm: false,
-        txfp: false,
-        // TODO - update CAN impl to calculate these
-        // HV CAN bus is configured for 500K
-        bit_timing: BIT_TIMING,
-    };
-
-    #[cfg(feature = "nucleo767zi")]
-    let can1_tx = gpiod.pd1.into_alternate_af9();
-    #[cfg(feature = "nucleo767zi")]
-    let can1_rx = gpiod.pd0.into_alternate_af9();
-
-    #[cfg(feature = "f4board")]
-    let can1_tx = gpiob.pb9.into_alternate_af9();
-    #[cfg(feature = "f4board")]
-    let can1_rx = gpiob.pb8.into_alternate_af9();
-
-    let hv_can = Can::can1(p.CAN1, (can1_tx, can1_rx), &mut rcc.apb1, &HV_CAN_CONFIG)
-        .expect("Failed to configure HV CAN (CAN1)");
-    let can_filter: CanFilterConfig = CanFilterConfig::default();
-    hv_can.configure_filter(&can_filter).ok();
 
     // Create the status structure
     let mut cp_state = CPState::new();
@@ -426,7 +263,7 @@ fn EXTI2() {
     });
 }
 
-#[cfg(feature = "f4board")]
+#[cfg(any(feature = "nucleof446re", feature = "production",))]
 #[interrupt]
 fn EXTI3() {
     // This is going to fire for all pins associated with this interrupt, which is going to be all

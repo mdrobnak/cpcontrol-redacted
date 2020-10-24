@@ -59,11 +59,11 @@ enum SubFamily {
 
 impl SubFamily {
     fn read() -> Self {
-        if cfg!(feature = "f4board") {
+        if cfg!(feature = "nucleof446re") {
             SubFamily::Stm32f446
         } else if cfg!(feature = "nucleo767zi") {
             SubFamily::Stm32f767
-        } else if cfg!(feature = "prodboard") {
+        } else if cfg!(feature = "production") {
             SubFamily::Stm32f405
         } else {
             error("You must select a target.

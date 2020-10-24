@@ -12,17 +12,19 @@ required-features = ["nucleo767zi"]
 [[bin]]
 name = "cpcontrol-f4"
 path = "src/main.rs"
-required-features = ["f4board"]
+required-features = ["nucleof446re"]
 
 [[bin]]
 name = "cpcontrol-prod"
 path = "src/main.rs"
-required-features = ["prodboard"]
+required-features = ["production"]
 
 
 [features]
-f4board = [ "stm32f4xx-hal" ]
+nucleof446re = [ "stm32f4xx-hal" ]
 nucleo767zi = ["stm32f7xx-hal"]
+production = [ "stm32f4xx-hal" ]
+
 
 [dependencies]
 arraydeque = { version = "0.4.5", default-features = false }

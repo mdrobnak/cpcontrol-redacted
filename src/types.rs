@@ -2,7 +2,7 @@
 #[cfg(feature = "nucleo767zi")]
 extern crate stm32f7xx_hal as hal;
 
-#[cfg(feature = "f4board")]
+#[cfg(any(feature = "nucleof446re", feature = "production",))]
 extern crate stm32f4xx_hal as hal;
 
 use arraydeque::{ArrayDeque, Wrapping};
@@ -160,29 +160,46 @@ mod abstractions {
     extern crate stm32f7xx_hal as hal;
     use hal::can::Can;
     use hal::gpio::gpiod::{PD0, PD1};
-    use hal::gpio::gpiog::PG2;
+    use hal::gpio::gpiog::{PG2, PG3};
     use hal::gpio::AF9;
-    use hal::gpio::{Alternate, Floating, Input};
+    use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
     use hal::pac::CAN1;
     pub type HVCAN = Can<CAN1, (PD1<Alternate<AF9>>, PD0<Alternate<AF9>>)>;
     pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART3>;
     pub type FaultLinePin = PG2<Input<Floating>>;
+    pub type LatchOutPin = PG3<Output<PushPull>>;
 }
 
-#[cfg(feature = "f4board")]
+#[cfg(feature = "nucleof446re")]
 mod abstractions {
     extern crate stm32f4xx_hal as hal;
     use hal::can::Can;
-    use hal::gpio::gpiob::{PB3, PB8, PB9};
+    use hal::gpio::gpiob::{PB3, PB5, PB8, PB9};
     use hal::gpio::AF9;
-    use hal::gpio::{Alternate, Floating, Input};
+    use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
     use hal::pac::CAN1;
     pub type HVCAN = Can<CAN1, (PB9<Alternate<AF9>>, PB8<Alternate<AF9>>)>;
     pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART2>;
     pub type FaultLinePin = PB3<Input<Floating>>;
-    // PB5 is output.
+    pub type LatchOutPin = PB5<Output<PushPull>>;
+}
+
+#[cfg(feature = "production")]
+mod abstractions {
+    // Simply a clone of the nucleof446re for the moment.
+    extern crate stm32f4xx_hal as hal;
+    use hal::can::Can;
+    use hal::gpio::gpiob::{PB3, PB5, PB8, PB9};
+    use hal::gpio::AF9;
+    use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
+    use hal::pac::CAN1;
+    pub type HVCAN = Can<CAN1, (PB9<Alternate<AF9>>, PB8<Alternate<AF9>>)>;
+    pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART2>;
+    pub type FaultLinePin = PB3<Input<Floating>>;
+    pub type LatchOutPin = PB5<Output<PushPull>>;
 }
 
 pub type HVCAN = abstractions::HVCAN;
 pub type SerialConsoleOutput = abstractions::SerialConsoleOutput;
 pub type FaultLinePin = abstractions::FaultLinePin;
+pub type LatchOutPin = abstractions::LatchOutPin;
