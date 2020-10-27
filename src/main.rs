@@ -19,26 +19,25 @@
 extern crate cortex_m;
 extern crate panic_halt;
 
-use chrono::NaiveDate;
-
+// Entrypoint
 use cortex_m_rt::entry;
 
-#[cfg(feature = "nucleo767zi")]
+#[cfg(feature = "nucleof767zi")]
 extern crate stm32f7xx_hal as hal;
-#[cfg(feature = "nucleo767zi")]
-use hal::serial;
 
-#[cfg(any(feature = "nucleof446re", feature = "production",))]
+#[cfg(any(
+    feature = "nucleof446re",
+    feature = "production",
+    feature = "twentyfour",
+))]
 extern crate stm32f4xx_hal as hal;
 
+// General HAL items
 use hal::{
     interrupt, pac,
     prelude::*,
     timer::{Event, Timer},
 };
-
-use hal::rtc::Rtc;
-use rtcc::Rtcc;
 
 // CP ECU Signal Input
 // Used to clear the pending interrupt bit in the interrupt handler.
@@ -52,6 +51,10 @@ use cortex_m::interrupt::{free, Mutex};
 // CAN
 use hal::can::CanFilterConfig;
 use hal::can::RxFifo;
+
+// RTC
+use chrono::NaiveDate;
+use rtcc::Rtcc;
 
 // Aliases
 use cpcontrol::can_receive_logic::init as can_receive_logic;
@@ -236,7 +239,7 @@ fn TIM2() {
     });
 }
 
-#[cfg(feature = "nucleo767zi")]
+#[cfg(feature = "nucleof767zi")]
 #[interrupt]
 fn EXTI2() {
     // This is going to fire for all pins associated with this interrupt, which is going to be all
@@ -261,7 +264,11 @@ fn EXTI2() {
     });
 }
 
-#[cfg(any(feature = "nucleof446re", feature = "production",))]
+#[cfg(any(
+    feature = "nucleof446re",
+    feature = "production",
+    feature = "twentyfour",
+))]
 #[interrupt]
 fn EXTI3() {
     // This is going to fire for all pins associated with this interrupt, which is going to be all

@@ -19,6 +19,7 @@ fn main() -> Result<(), Error> {
 fn copy_memory_config(target: Target) -> Result<(), Error> {
     let memory_x = match target.sub_family {
         SubFamily::Stm32f405 => include_bytes!("memory_512_128.x").as_ref(),
+        SubFamily::Stm32f407 => include_bytes!("memory_512_128.x").as_ref(),
         SubFamily::Stm32f446 => include_bytes!("memory_512_128.x").as_ref(),
         SubFamily::Stm32f767 => include_bytes!("memory_2048_368.x").as_ref(),
     };
@@ -53,6 +54,7 @@ impl Target {
 #[derive(Clone, Copy)]
 enum SubFamily {
     Stm32f405,
+    Stm32f407,
     Stm32f446,
     Stm32f767,
 }
@@ -61,8 +63,10 @@ impl SubFamily {
     fn read() -> Self {
         if cfg!(feature = "nucleof446re") {
             SubFamily::Stm32f446
-        } else if cfg!(feature = "nucleo767zi") {
+        } else if cfg!(feature = "nucleof767zi") {
             SubFamily::Stm32f767
+        } else if cfg!(feature = "twentyfour") {
+            SubFamily::Stm32f407
         } else if cfg!(feature = "production") {
             SubFamily::Stm32f405
         } else {

@@ -1,8 +1,12 @@
 #![deny(warnings)]
-#[cfg(feature = "nucleo767zi")]
+#[cfg(feature = "nucleof767zi")]
 extern crate stm32f7xx_hal as hal;
 
-#[cfg(any(feature = "nucleof446re", feature = "production",))]
+#[cfg(any(
+    feature = "nucleof446re",
+    feature = "production",
+    feature = "twentyfour",
+))]
 extern crate stm32f4xx_hal as hal;
 
 use arraydeque::{ArrayDeque, Wrapping};
@@ -155,7 +159,7 @@ pub type DataFrame = hal::can::DataFrame;
 pub type ID = hal::can::ID;
 
 // HW specific type abstractions
-#[cfg(feature = "nucleo767zi")]
+#[cfg(feature = "nucleof767zi")]
 mod abstractions {
     extern crate stm32f7xx_hal as hal;
     use hal::can::Can;
@@ -184,7 +188,7 @@ mod abstractions {
     pub type LatchOutPin = PB5<Output<PushPull>>;
 }
 
-#[cfg(feature = "production")]
+#[cfg(any(feature = "production", feature = "twentyfour",))]
 mod abstractions {
     // Simply a clone of the nucleof446re for the moment.
     extern crate stm32f4xx_hal as hal;

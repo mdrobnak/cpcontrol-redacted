@@ -1,14 +1,22 @@
 //#![deny(warnings)]
-#[cfg(feature = "nucleo767zi")]
+#[cfg(feature = "nucleof767zi")]
 extern crate stm32f7xx_hal as hal;
 
-#[cfg(any(feature = "nucleof446re", feature = "production",))]
+#[cfg(any(
+    feature = "nucleof446re",
+    feature = "production",
+    feature = "twentyfour",
+))]
 extern crate stm32f4xx_hal as hal;
 
-#[cfg(feature = "nucleo767zi")]
+#[cfg(feature = "nucleof767zi")]
 use hal::serial::Config;
 
-#[cfg(any(feature = "nucleof446re", feature = "production",))]
+#[cfg(any(
+    feature = "nucleof446re",
+    feature = "production",
+    feature = "twentyfour",
+))]
 use hal::serial::config::Config;
 
 use cortex_m::peripheral::NVIC;
@@ -37,17 +45,21 @@ pub fn enable_interrupts() {
     unsafe {
         NVIC::unmask(pac::Interrupt::TIM2);
     }
-    #[cfg(feature = "nucleo767zi")]
+    #[cfg(feature = "nucleof767zi")]
     unsafe {
         NVIC::unmask::<interrupt>(interrupt::EXTI2);
     }
-    #[cfg(any(feature = "nucleof446re", feature = "production",))]
+    #[cfg(any(
+        feature = "nucleof446re",
+        feature = "production",
+        feature = "twentyfour",
+    ))]
     unsafe {
         NVIC::unmask::<interrupt>(interrupt::EXTI3);
     }
 }
 
-#[cfg(feature = "nucleo767zi")]
+#[cfg(feature = "nucleof767zi")]
 pub fn init_devices() -> (
     FaultLinePin,
     LatchOutPin,
@@ -166,7 +178,11 @@ pub fn init_devices() -> (
     return (fault_in, latch_out, hv_can, serial, timer, rtc);
 }
 
-#[cfg(any(feature = "nucleof446re", feature = "production",))]
+#[cfg(any(
+    feature = "nucleof446re",
+    feature = "production",
+    feature = "twentyfour",
+))]
 pub fn init_devices() -> (
     FaultLinePin,
     LatchOutPin,
@@ -208,7 +224,7 @@ pub fn init_devices() -> (
     let mut rcc = p.RCC.constrain();
     #[cfg(feature = "nucleof446re")]
     let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(180.mhz()).freeze();
-    #[cfg(feature = "production")]
+    #[cfg(any(feature = "production", feature = "twentyfour",))]
     let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(160.mhz()).freeze();
 
     let gpioa = p.GPIOA.split();
@@ -241,7 +257,7 @@ pub fn init_devices() -> (
 
     // (40MHz APB1 for 160MHz clock)
     // CAN_BTR: 0x001c0004
-    #[cfg(feature = "production")]
+    #[cfg(any(feature = "production", feature = "twentyfour",))]
     const BIT_TIMING: CanBitTiming = CanBitTiming {
         prescaler: 4, // Prescaler: 5
         sjw: 0,       // CAN_SJW_1TQ
@@ -263,9 +279,17 @@ pub fn init_devices() -> (
         bit_timing: BIT_TIMING,
     };
 
-    #[cfg(any(feature = "nucleof446re", feature = "production",))]
+    #[cfg(any(
+        feature = "nucleof446re",
+        feature = "production",
+        feature = "twentyfour",
+    ))]
     let can1_tx = gpiob.pb9.into_alternate_af9();
-    #[cfg(any(feature = "nucleof446re", feature = "production",))]
+    #[cfg(any(
+        feature = "nucleof446re",
+        feature = "production",
+        feature = "twentyfour",
+    ))]
     let can1_rx = gpiob.pb8.into_alternate_af9();
 
     let hv_can = Can::can1(p.CAN1, (can1_tx, can1_rx), &mut rcc.apb1, &HV_CAN_CONFIG)

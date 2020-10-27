@@ -1,9 +1,9 @@
 [alias]
 bf4 = "build --features=nucleof446re  --bin cpcontrol-f4"
-bf7 = "build --features=nucleo767zi  --bin cpcontrol-f7"
+bf7 = "build --features=nucleof767zi  --bin cpcontrol-f7"
 bprod = "build --features=production --bin cpcontrol-prod"
 rf4 = "run --features=nucleof446re  --bin cpcontrol-f4"
-rf7 = "run --features=nucleo767zi  --bin cpcontrol-f7"
+rf7 = "run --features=nucleof767zi  --bin cpcontrol-f7"
 rprod = "run --features=production --bin cpcontrol-prod"
 
 [target.thumbv7em-none-eabihf]
