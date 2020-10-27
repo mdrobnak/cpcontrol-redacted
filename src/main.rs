@@ -19,9 +19,6 @@
 extern crate cortex_m;
 extern crate panic_halt;
 
-use chrono::NaiveTime;
-
-#[cfg(feature = "nucleo767zi")]
 use chrono::NaiveDate;
 
 use cortex_m_rt::entry;
@@ -29,11 +26,7 @@ use cortex_m_rt::entry;
 #[cfg(feature = "nucleo767zi")]
 extern crate stm32f7xx_hal as hal;
 #[cfg(feature = "nucleo767zi")]
-use hal::rtc::Rtc;
-#[cfg(feature = "nucleo767zi")]
 use hal::serial;
-#[cfg(feature = "nucleo767zi")]
-use rtcc::Rtcc;
 
 #[cfg(any(feature = "nucleof446re", feature = "production",))]
 extern crate stm32f4xx_hal as hal;
@@ -43,6 +36,9 @@ use hal::{
     prelude::*,
     timer::{Event, Timer},
 };
+
+use hal::rtc::Rtc;
+use rtcc::Rtcc;
 
 // CP ECU Signal Input
 // Used to clear the pending interrupt bit in the interrupt handler.
@@ -86,13 +82,15 @@ fn main() -> ! {
     // Hardware to initialize:
     // Fault Input
     // Latch Output
-    // CAN Tx, Rx
+    // HV CAN Tx, Rx
     // Clocks
     // Serial port
-    // TODO: RTC
+    // RTC (No alarms yet)
     // TIM2 SysTick
+    // TODO: Second CAN bus.
 
-    let (fault_in, mut latch_out, hv_can, serial, timer) = cpcontrol::hardware_init::init_devices();
+    let (fault_in, mut latch_out, hv_can, serial, timer, mut rtc) =
+        cpcontrol::hardware_init::init_devices();
 
     // Interrupts / Mutexes
     free(|cs| {
@@ -132,6 +130,8 @@ fn main() -> ! {
     let mut previous_1000_ms_ts = 0;
     let mut thousand_ms_counter: u8 = 0;
 
+    let datetime = NaiveDate::from_ymd(2020, 10, 25).and_hms(15, 13, 00);
+    rtc.set_datetime(&datetime).unwrap();
     // Create the status structure
     let mut cp_state = CPState::new();
     // Status queue things
@@ -142,10 +142,9 @@ fn main() -> ! {
     // Process serial input
     // Run X ms loops (10, 100, 1000)
 
-
-    let time = NaiveTime::from_hms(19, 59, 58);
     loop {
         let elapsed = free(|cs| ELAPSED_MS.borrow(cs).get());
+        let time = rtc.get_datetime().unwrap();
 
         // Highly interactive pieces:
         // CAN reception
@@ -217,7 +216,6 @@ fn main() -> ! {
             } else {
                 latch_out.set_high().ok();
             }
-
 
             thousand_ms_counter =
                 thousand_ms_loop(thousand_ms_counter, &mut cp_state, &hv_can, &SEMAPHORE);

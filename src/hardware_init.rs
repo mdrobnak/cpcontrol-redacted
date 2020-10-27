@@ -21,6 +21,7 @@ use hal::{
 
 use hal::gpio::Alternate;
 use hal::gpio::AF7;
+use hal::rtc::Rtc;
 // CP ECU Signal Input
 use hal::gpio::{Edge, ExtiPin};
 
@@ -59,6 +60,7 @@ pub fn init_devices() -> (
         ),
     >,
     hal::timer::Timer<pac::TIM2>,
+    hal::rtc::Rtc,
 ) {
     // Hardware to initialize:
     // Fault Input
@@ -150,7 +152,18 @@ pub fn init_devices() -> (
     let can_filter: CanFilterConfig = CanFilterConfig::default();
     hv_can.configure_filter(&can_filter).ok();
 
-    return (fault_in, latch_out, hv_can, serial, timer);
+    // RTC
+    let rtc = Rtc::new(
+        p.RTC,
+        255,
+        127,
+        false,
+        &mut rcc.apb1,
+        &mut rcc.bdcr,
+        &mut p.PWR,
+    );
+
+    return (fault_in, latch_out, hv_can, serial, timer, rtc);
 }
 
 #[cfg(any(feature = "nucleof446re", feature = "production",))]
@@ -166,6 +179,7 @@ pub fn init_devices() -> (
         ),
     >,
     hal::timer::Timer<hal::stm32::TIM2>,
+    hal::rtc::Rtc,
 ) {
     // Hardware to initialize:
     // Fault Input
@@ -173,7 +187,8 @@ pub fn init_devices() -> (
     // CAN Tx, Rx
     // Serial port
     // TIM2
-    let p = pac::Peripherals::take().unwrap();
+    // RTC
+    let mut p = pac::Peripherals::take().unwrap();
     let mut syscfg = p.SYSCFG;
     let mut exti = p.EXTI;
 
@@ -258,5 +273,16 @@ pub fn init_devices() -> (
     let can_filter: CanFilterConfig = CanFilterConfig::default();
     hv_can.configure_filter(&can_filter).ok();
 
-    return (fault_in, latch_out, hv_can, serial, timer);
+    // RTC
+    let rtc = Rtc::new(
+        p.RTC,
+        255,
+        127,
+        false,
+        &mut rcc.apb1,
+        &mut rcc.bdcr,
+        &mut p.PWR,
+    );
+
+    return (fault_in, latch_out, hv_can, serial, timer, rtc);
 }

@@ -24,7 +24,7 @@ pub fn serial_console(
     verbose_console: bool,
     print_header: bool,
     print_menu: bool,
-    time: rtcc::NaiveTime,
+    time: rtcc::NaiveDateTime,
 ) {
     const NO_ATTRIB: &str = "\x1B[0m";
 

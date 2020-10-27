@@ -8,7 +8,7 @@ pub fn init(
     elapsed: u32,
     mut ten_ms_counter: u16,
     hv_can: &HVCAN,
-    time: rtcc::NaiveTime,
+    time: rtcc::NaiveDateTime,
 ) -> u16 {
     u1(ten_ms_counter, hv_can);
     ccaa(hv_can, &mut cp_state);
@@ -156,6 +156,7 @@ pub fn ccaa(hv_can: &HVCAN, cp_state: &mut CPState) {
 }
 
 pub fn cbtxva(hv_can: &HVCAN, cp_state: &mut CPState) {
+
 
 
     let id: u16 = 0x000;
