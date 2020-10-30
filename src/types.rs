@@ -14,6 +14,14 @@ use core::fmt::Display;
 use heapless::consts::*;
 use heapless::String;
 
+#[derive(PartialEq, Eq)]
+pub enum CPTypeEnum {
+    US = 0,
+    IECEuro = 2,
+    GB = 3,
+    IECCCS = 4,
+}
+
 pub enum DoorStateEnum {
     DoorIdle = 0,
     DoorOpen = 1,
@@ -101,6 +109,7 @@ pub struct CPState {
     pub cp_door_state: DoorStateEnum,
     pub cp_init: bool,
     pub desired_cp_led_state: LEDStateEnum,
+    pub ecu_type: CPTypeEnum,
     pub evse_request: bool,
     pub latch_enabled: bool,
     previous_desired_cp_led_state: LEDStateEnum,
@@ -137,6 +146,7 @@ impl CPState {
             cp_door_state: DoorStateEnum::DoorIdle,
             cp_init: false,
             desired_cp_led_state: LEDStateEnum::WhiteBlue,
+            ecu_type: CPTypeEnum::US,
             evse_request: false,
             latch_enabled: true,
             previous_desired_cp_led_state: LEDStateEnum::WhiteBlue,

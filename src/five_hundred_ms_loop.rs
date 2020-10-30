@@ -52,8 +52,37 @@ pub fn tatata(hv_can: &HVCAN, cp_state: &mut CPState) {
         DoorStateEnum::DoorCloseRequest => {
             tatata[0] |= 0x00;
         }
-        DoorStateEnum::DoorOpening | DoorStateEnum::DoorClosing => {
+        DoorStateEnum::DoorClosing => {
             tatata[0] &= 0x00;
+            let id: u16 = 0x000;
+            let mut response_frame = DataFrame::new(ID::BaseID(BaseID::new(id.into())));
+            response_frame.set_data_length(8);
+            let response = response_frame.data_as_mut();
+            response[0] = 0x00;
+            response[1] = 0x00;
+            response[2] = 0x00;
+            response[3] = 0x00;
+            response[4] = 0x00;
+            response[5] = 0x00;
+            response[6] = 0x00;
+            response[7] = 0x00;
+            hv_can.transmit(&response_frame.into()).ok();
+        }
+        DoorStateEnum::DoorOpening => {
+            tatata[0] &= 0x00;
+            let id: u16 = 0x000;
+            let mut response_frame = DataFrame::new(ID::BaseID(BaseID::new(id.into())));
+            response_frame.set_data_length(8);
+            let response = response_frame.data_as_mut();
+            response[0] = 0x00;
+            response[1] = 0x00;
+            response[2] = 0x00;
+            response[3] = 0x00;
+            response[4] = 0x00;
+            response[5] = 0x00;
+            response[6] = 0x00;
+            response[7] = 0x00;
+            hv_can.transmit(&response_frame.into()).ok();
         }
         DoorStateEnum::DoorOpen | DoorStateEnum::DoorClosed => {
             // Do nothing.

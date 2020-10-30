@@ -1,20 +1,22 @@
-//#![deny(warnings)]
+#![deny(warnings)]
 #![deny(unsafe_code)]
 #![no_main]
 #![no_std]
 
 // TODO:
 
+// Validate that serial doesn't mess with timing on new code, maybe move back to 115.2k?
 // 10 ms logic.
 // Search for and remove insances of .ok() - Create struct var with output, determine health.
 // J1772 AC charging logic
 // Handle power-on with cable in place (sticks in Charge Port Error)
 // Learn how to handle interrupt sources
-// RTC setup - look at existing driver and compare - Found stm32f3xx-hal example.
+// RTC setup - Alarm code needs to be implemented, or using math
 // IVT-S Read Voltage
 // SimpBMS Voltage
 // EEPROM Settings
 // Handle door stuff better.
+// Serial for Wifi
 
 extern crate cortex_m;
 extern crate panic_halt;
@@ -153,7 +155,7 @@ fn main() -> ! {
         // CAN reception
         for fifo in &[RxFifo::Fifo0, RxFifo::Fifo1] {
             if let Ok(rx_frame) = hv_can.receive(fifo) {
-                cp_state = can_receive_logic(&rx_frame, elapsed, cp_state);
+                can_receive_logic(&rx_frame, elapsed, &mut cp_state);
             }
         }
 
