@@ -97,6 +97,30 @@ impl Display for ChargerTypeEnum {
     }
 }
 
+// Ugly hack to update the date / time.
+pub struct RTCUpdate {
+    pub temp: String<U4>,
+    pub y_uip: bool,
+    pub m_uip: bool,
+    pub d_uip: bool,
+    pub h_uip: bool,
+    pub min_uip: bool,
+    pub s_uip: bool,
+}
+impl RTCUpdate {
+    pub fn new() -> Self {
+        Self {
+            temp: String::new(),
+            y_uip: false,
+            m_uip: false,
+            d_uip: false,
+            h_uip: false,
+            min_uip: false,
+            s_uip: false,
+        }
+    }
+}
+
 pub struct CPState {
     pub activity_list: ArrayDeque<[String<U60>; 4], Wrapping>,
     pub auto_start: bool,
@@ -116,6 +140,7 @@ pub struct CPState {
     pub print_menu_request: bool,
     pub previous_cptod_ts: u32,
     pub quiet_to_verbose: bool,
+    pub rtc_update: bool,
     pub tcgz: u8,
     pub vehicle_locked: bool,
     pub verbose_stats: bool,
@@ -153,6 +178,7 @@ impl CPState {
             print_menu_request: false,
             previous_cptod_ts: 0,
             quiet_to_verbose: false,
+            rtc_update: false,
             tcgz: 0x60,
             vehicle_locked: false,
             verbose_stats: false,
@@ -167,6 +193,7 @@ pub type BaseID = hal::can::BaseID;
 pub type CanFrame = hal::can::CanFrame;
 pub type DataFrame = hal::can::DataFrame;
 pub type ID = hal::can::ID;
+pub type Rtc = hal::rtc::Rtc;
 
 // HW specific type abstractions
 #[cfg(feature = "nucleof767zi")]

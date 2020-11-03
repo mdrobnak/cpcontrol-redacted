@@ -333,7 +333,7 @@ dependencies = [
 [[package]]
 name = "stm32f4xx-hal"
 version = "0.8.3"
-source = "git+https://github.com/mdrobnak/stm32f4xx-hal.git#69daef647035af31e65465209a973bbb02fdf63d"
+source = "git+https://github.com/mdrobnak/stm32f4xx-hal.git#380748a0896681a11809e2353ac17500e633404f"
 dependencies = [
  "bare-metal",
  "cast",
@@ -364,7 +364,7 @@ dependencies = [
 [[package]]
 name = "stm32f7xx-hal"
 version = "0.2.0"
-source = "git+https://github.com/mdrobnak/stm32f7xx-hal.git#ca22f06c786a762fc55adcf5d10ac6066dc499c5"
+source = "git+https://github.com/mdrobnak/stm32f7xx-hal.git#c802c0db926d03adfb648d4dee7384acf1671e96"
 dependencies = [
  "as-slice",
  "bare-metal",

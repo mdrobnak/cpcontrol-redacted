@@ -135,10 +135,12 @@ fn main() -> ! {
     let mut previous_1000_ms_ts = 0;
     let mut thousand_ms_counter: u8 = 0;
 
-    let datetime = NaiveDate::from_ymd(2020, 10, 25).and_hms(15, 13, 00);
+    let datetime = NaiveDate::from_ymd(2020, 10, 25).and_hms(23, 59, 45);
     rtc.set_datetime(&datetime).unwrap();
     // Create the status structure
     let mut cp_state = CPState::new();
+    // This is pretty dumb, but, eh.
+    let mut rtc_data = RTCUpdate::new();
     // Status queue things
     // Too many of these items slows down serial console, which slows down
     // all of the loops.
@@ -159,9 +161,16 @@ fn main() -> ! {
             }
         }
 
-        // Serial input
+        // Serial input (and some output) - BUT - only gets called when there is input!
         if let Ok(received) = rx.read() {
-            cp_state = process_serial(received, elapsed, cp_state);
+            cp_state = process_serial(
+                received,
+                elapsed,
+                cp_state,
+                &mut tx,
+                &mut rtc,
+                &mut rtc_data,
+            );
         }
 
         // 10 ms - Done
@@ -174,6 +183,8 @@ fn main() -> ! {
                 ten_ms_counter,
                 &hv_can,
                 time,
+                &mut rtc,
+                &rtc_data,
             );
             // Once run, flip it off.
             if cp_state.quiet_to_verbose {

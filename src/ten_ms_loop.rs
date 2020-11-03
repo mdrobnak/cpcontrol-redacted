@@ -9,6 +9,8 @@ pub fn init(
     mut ten_ms_counter: u16,
     hv_can: &HVCAN,
     time: rtcc::NaiveDateTime,
+    mut rtc: &mut Rtc,
+    rtc_data: &RTCUpdate,
 ) -> u16 {
     u1(ten_ms_counter, hv_can);
     ccaa(hv_can, &mut cp_state);
@@ -31,6 +33,8 @@ pub fn init(
         ten_ms_counter % 3000 == 0 || cp_state.quiet_to_verbose,
         cp_state.print_menu_request,
         time,
+        &mut rtc,
+        &rtc_data,
     );
     if ten_ms_counter < 65535 {
         ten_ms_counter = ten_ms_counter + 1;

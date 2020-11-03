@@ -1,11 +1,214 @@
 #![deny(warnings)]
 use crate::types::CPState;
 use crate::types::*;
+use core::fmt::Write;
 use heapless::consts::U60;
 use heapless::String;
+use rtcc::Rtcc;
+use rtcc::Timelike;
 use ufmt::uwrite;
 
-pub fn init(command: u8, elapsed: u32, mut cp_state: CPState) -> CPState {
+macro_rules! uprint {
+    ($serial:expr, $($arg:tt)*) => {
+        $serial.write_fmt(format_args!($($arg)*)).ok()
+    };
+}
+
+macro_rules! uprintln {
+    ($serial:expr, $fmt:expr) => {
+        uprint!($serial, concat!($fmt, "\n"))
+    };
+    ($serial:expr, $fmt:expr, $($arg:tt)*) => {
+        uprint!($serial, concat!($fmt, "\n"), $($arg)*)
+    };
+}
+
+pub fn init(
+    command: u8,
+    elapsed: u32,
+    mut cp_state: CPState,
+    mut tx: &mut SerialConsoleOutput,
+    mut rtc: &mut Rtc,
+    mut rtc_data: &mut RTCUpdate,
+) -> CPState {
+    if cp_state.rtc_update {
+        cp_state = rtc_input(command, elapsed, cp_state, &mut tx, &mut rtc, &mut rtc_data);
+    } else {
+        cp_state = normal_input(command, elapsed, cp_state, &mut tx);
+    }
+    cp_state
+}
+pub fn parse_rtc(
+    tx: &mut SerialConsoleOutput,
+    command: u8,
+    max_len: u8,
+    rtc_data: &mut RTCUpdate,
+) -> bool {
+    if command == 0x00{
+        rtc_data.temp.pop();
+    } else if command > 0x29 && command < 0x3A && rtc_data.temp.len() < max_len.into() {
+        uprint!(
+            tx,
+            "\x1B[8;{}H{}",
+            rtc_data.temp.len() + 23,
+            command as char
+        );
+        rtc_data.temp.push(command as char).ok();
+    }
+    if rtc_data.temp.len() == max_len.into() && command == 0x00{
+        return true;
+    } else {
+        return false;
+    }
+}
+
+pub fn rtc_input(
+    command: u8,
+    _elapsed: u32,
+    mut cp_state: CPState,
+    tx: &mut SerialConsoleOutput,
+    rtc: &mut Rtc,
+    mut rtc_data: &mut RTCUpdate,
+) -> CPState {
+    // Check if there's an update in progress already
+    let mut date_uip = rtc_data.y_uip || rtc_data.m_uip || rtc_data.d_uip;
+    let mut time_uip = rtc_data.h_uip || rtc_data.min_uip || rtc_data.s_uip;
+    if date_uip || time_uip {
+        if rtc_data.y_uip {
+            if parse_rtc(tx, command, 4, &mut rtc_data) {
+                // Update the year
+                let year: u16 = rtc_data.temp.parse().unwrap();
+                rtc.set_year(year).ok();
+                rtc_data.y_uip = false;
+            }
+        } else if rtc_data.m_uip {
+            if parse_rtc(tx, command, 2, &mut rtc_data) {
+                // They hit enter or an extraneous character
+                // Update the year
+                let month: u8 = rtc_data.temp.parse().unwrap();
+                rtc.set_month(month).ok();
+                rtc_data.m_uip = false;
+            }
+        } else if rtc_data.d_uip {
+            if parse_rtc(tx, command, 2, &mut rtc_data) {
+                let day: u8 = rtc_data.temp.parse().unwrap();
+                rtc.set_day(day).ok();
+                rtc_data.d_uip = false;
+            }
+        } else if rtc_data.h_uip {
+            if parse_rtc(tx, command, 2, &mut rtc_data) {
+                let hour: u8 = rtc_data.temp.parse().unwrap();
+                rtc.set_hours(rtcc::Hours::H24(hour)).ok();
+                rtc_data.h_uip = false;
+            }
+        } else if rtc_data.min_uip {
+            if parse_rtc(tx, command, 2, &mut rtc_data) {
+                let minute: u8 = rtc_data.temp.parse().unwrap();
+                rtc.set_minutes(minute).ok();
+                rtc_data.min_uip = false;
+            }
+        } else if rtc_data.s_uip {
+            if parse_rtc(tx, command, 2, &mut rtc_data) {
+                let second: u8 = rtc_data.temp.parse().unwrap();
+                rtc.set_seconds(second).ok();
+                rtc_data.s_uip = false;
+            }
+        }
+
+        // If all of the flags are clear,we've updated things.
+        date_uip = rtc_data.y_uip || rtc_data.m_uip || rtc_data.d_uip;
+        time_uip = rtc_data.h_uip || rtc_data.min_uip || rtc_data.s_uip;
+        if !(date_uip || time_uip) {
+            rtc_data.temp.clear();
+            uprintln!(tx, "\x1B[2J\x1B[HSet Clock: ");
+        }
+    } else {
+        match command {
+            // 1
+            0x31 => {
+                uprint!(
+                    tx,
+                    "\x1B[8HEnter 4 digit year:   {}\x1B[0K",
+                    rtc.get_year().unwrap()
+                );
+                // Set update in progress flag.
+                rtc_data.y_uip = true;
+            }
+
+            // 2
+            0x32 => {
+                uprint!(
+                    tx,
+                    "\x1B[8HEnter 2 digit month:  {}\x1B[0K",
+                    rtc.get_month().unwrap()
+                );
+                // Set update in progress flag.
+                rtc_data.m_uip = true;
+            }
+
+            // 3
+            0x33 => {
+                uprint!(
+                    tx,
+                    "\x1B[8HEnter 2 digit day:    {}\x1B[0K",
+                    rtc.get_day().unwrap()
+                );
+                // Set update in progress flag.
+                rtc_data.d_uip = true;
+            }
+            // 4
+            0x34 => {
+                let fulltime = rtc.get_time().unwrap();
+                uprint!(
+                    tx,
+                    "\x1B[8HEnter 2 digit hour:   {}\x1B[0K",
+                    fulltime.hour()
+                );
+                // Set update in progress flag.
+                rtc_data.h_uip = true;
+            }
+            // 5
+            0x35 => {
+                uprint!(
+                    tx,
+                    "\x1B[8HEnter 2 digit minute: {}\x1B[0K",
+                    rtc.get_minutes().unwrap()
+                );
+                // Set update in progress flag.
+                rtc_data.min_uip = true;
+            }
+            // 6
+            0x36 => {
+                uprint!(
+                    tx,
+                    "\x1B[8HEnter 2 digit second: {}\x1B[0K",
+                    rtc.get_seconds().unwrap()
+                );
+                // Set update in progress flag.
+                rtc_data.s_uip = true;
+            }
+
+            0xD => {
+                let mut s: String<U60> = String::new();
+                if (rtc.get_year().unwrap()) == 1985 {
+                    uwrite!(s, "Great Scott!").ok();
+                    cp_state.activity_list.push_back(s);
+                }
+
+                cp_state.rtc_update = false;
+                cp_state.quiet_to_verbose = true;
+            }
+            _ => {}
+        }
+    }
+    cp_state
+}
+pub fn normal_input(
+    command: u8,
+    elapsed: u32,
+    mut cp_state: CPState,
+    tx: &mut SerialConsoleOutput,
+) -> CPState {
     match command {
         // a
         0x61 => {
@@ -89,6 +292,15 @@ pub fn init(command: u8, elapsed: u32, mut cp_state: CPState) -> CPState {
             uwrite!(s, "{} - Stopping Rainbow mode.", elapsed).ok();
             cp_state.activity_list.push_back(s);
             cp_state.set_previous_led();
+        }
+        // s
+        0x73 => {
+            // Set the RTC clock
+            let mut s: String<U60> = String::new();
+            uwrite!(s, "{} - Enter RTC update mode.", elapsed).ok();
+            cp_state.activity_list.push_back(s);
+            uprintln!(tx, "\x1B[2J\x1B[HSet Clock: ");
+            cp_state.rtc_update = true;
         }
         // v
         0x76 => {

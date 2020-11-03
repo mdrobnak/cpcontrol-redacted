@@ -1,6 +1,7 @@
 #![deny(warnings)]
 use crate::types::*;
 use core::fmt::Write;
+use rtcc::Rtcc;
 
 macro_rules! uprint {
     ($serial:expr, $($arg:tt)*) => {
@@ -25,16 +26,19 @@ pub fn serial_console(
     print_header: bool,
     print_menu: bool,
     time: rtcc::NaiveDateTime,
+    rtc: &mut Rtc,
+    rtc_data: &RTCUpdate,
 ) {
     const NO_ATTRIB: &str = "\x1B[0m";
-
-    if verbose_console {
+    if cp_state.rtc_update {
+        set_rtc(tx, rtc, rtc_data, ten_ms_counter);
+    } else if verbose_console {
         if print_header {
             print_header_to_serial(tx, verbose_console);
         }
 
         if ten_ms_counter % 10 == 0 {
-            let mut line = 14;
+            let mut line = 15;
             for i in cp_state.activity_list.iter() {
                 uprintln!(tx, "\x1B[{};3H{}", line, i);
                 line = line + 1;
@@ -91,6 +95,7 @@ pub fn print_header_to_serial(tx: &mut SerialConsoleOutput, verbose_console: boo
     uprintln!(tx, "l / L - Lock / Unlock doors.");
     uprintln!(tx, "m - Show menu with verbose disabled.");
     uprintln!(tx, "r / R - Start / End Rainbow / Rave mode.");
+    uprintln!(tx, "s - Set the date and time.");
     uprintln!(tx, "v / V - Enable / Disable verbose.");
     if verbose_console {
         verbose_footer(tx);
@@ -107,4 +112,31 @@ pub fn verbose_footer(tx: &mut SerialConsoleOutput) {
     uprintln!(tx, "|                                                              |");
     uprintln!(tx, "|                                                              |");
     uprintln!(tx, "+--------------------------------------------------------------+");
+}
+
+pub fn set_rtc(
+    tx: &mut SerialConsoleOutput,
+    rtc: &mut Rtc,
+    rtc_data: &RTCUpdate,
+    ten_ms_counter: u16,
+) {
+    if ten_ms_counter % 10 == 0 {
+        uprintln!(tx, "\x1B[2H1. Year:   {}", rtc.get_year().unwrap());
+        uprintln!(tx, "\x1B[3H2. Month:  {}", rtc.get_month().unwrap());
+        uprintln!(tx, "\x1B[4H3. Day:    {}", rtc.get_day().unwrap());
+        uprintln!(tx, "\x1B[5H4. Hour:   {:?}", rtc.get_hours().unwrap());
+        uprintln!(tx, "\x1B[6H5. Minute: {}", rtc.get_minutes().unwrap());
+        uprintln!(tx, "\x1B[7H6. Second: {}", rtc.get_seconds().unwrap());
+        let date_uip = rtc_data.y_uip || rtc_data.m_uip || rtc_data.d_uip;
+        let time_uip = rtc_data.h_uip || rtc_data.min_uip || rtc_data.s_uip;
+
+        if date_uip || time_uip {
+            uprint!(tx, "\x1B[8;{}H", rtc_data.temp.len() + 23);
+        } else {
+            uprint!(
+                tx,
+                "\x1B[8HEnter Number of item to modify (Enter to exit): "
+            );
+        }
+    }
 }
