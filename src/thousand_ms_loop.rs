@@ -1,15 +1,7 @@
 #![deny(warnings)]
 use crate::types::{BaseID, CPState, DataFrame, HVCAN, ID};
-use core::cell::Cell;
 
-use cortex_m::interrupt::{free, Mutex};
-
-pub fn init(
-    mut thousand_ms_counter: u8,
-    mut cp_state: &mut CPState,
-    hv_can: &HVCAN,
-    semaphore: &Mutex<Cell<bool>>,
-) -> u8 {
+pub fn init(mut thousand_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVCAN) -> u8 {
     usx(hv_can);
     tto(hv_can);
     rss(hv_can);
@@ -31,14 +23,6 @@ pub fn init(
     }
     return faultLineVoltage;
     */
-    free(|cs| {
-        if semaphore.borrow(cs).get() == false {
-            // If this is low, then the GPIO is low.
-            cp_state.cp_init = false;
-        } else {
-            cp_state.cp_init = true;
-        }
-    });
     if thousand_ms_counter < 255 {
         thousand_ms_counter = thousand_ms_counter + 1;
     } else {

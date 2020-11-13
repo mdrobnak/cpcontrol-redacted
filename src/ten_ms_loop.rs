@@ -1,6 +1,11 @@
 #![deny(warnings)]
+use crate::process_init::init as process_init;
 use crate::serial_console::serial_console;
 use crate::types::*;
+
+use heapless::consts::U60;
+use heapless::String;
+use ufmt::uwrite;
 
 pub fn init(
     mut tx: &mut SerialConsoleOutput,
@@ -12,6 +17,7 @@ pub fn init(
     mut rtc: &mut Rtc,
     rtc_data: &RTCUpdate,
 ) -> u16 {
+    process_init(&mut cp_state, elapsed);
     u1(ten_ms_counter, hv_can);
     ccaa(hv_can, &mut cp_state);
     cbtxva(hv_can, &mut cp_state);
@@ -20,7 +26,18 @@ pub fn init(
 
     // Check for timeout with CP ECU
     if (elapsed - cp_state.previous_cptod_ts) > 1000 {
+        let mut s: String<U60> = String::new();
+        uwrite!(
+            s,
+            "{} - Timeout - {}",
+            elapsed,
+            (elapsed - cp_state.previous_cptod_ts)
+        )
+        .ok();
+        cp_state.activity_list.push_back(s);
+
         cp_state.cp_comm_timeout = true;
+        cp_state.cp_init = false;
         cp_state.charge_state = ChargeStateEnum::TimeOut;
     }
 

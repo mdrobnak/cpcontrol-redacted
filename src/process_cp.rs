@@ -45,6 +45,7 @@ pub fn init(mut cp_state: &mut CPState, id: u32, data: &[u8]) {
             let sw_can: bool = id == 0x00F && data[4] == 0x00;
             let j1772: bool = id == 0x00F && (data[0] & 0x00) == 0x00;
             let eu_ac: bool = id == 0x00F && (data[0] & 0x00) == 0x00;
+
             // States allowed - wait for comms, idle, error
             if sw_can || j1772 || eu_ac {
                 cp_state.charge_state = ChargeStateEnum::WaitForComms;
@@ -93,7 +94,10 @@ pub fn init(mut cp_state: &mut CPState, id: u32, data: &[u8]) {
             if (id == 0x00F) && ((data[4] & 0x00) == 0x00) && (data[1] != 0x00)
             // Charge current set, make contactor request
             {
-                cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorACRequest;
+                if cp_state.auto_start {
+                    cp_state.contactor_request_state =
+                        ContactorRequestStateEnum::ContactorACRequest;
+                }
                 cp_state.charger_type = ChargerTypeEnum::AC;
 
 
@@ -104,6 +108,11 @@ pub fn init(mut cp_state: &mut CPState, id: u32, data: &[u8]) {
                 cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorDCRequest;
                 cp_state.charger_type = ChargerTypeEnum::DC;
 
+            }
+            if (id == 0x00F) && ((data[0] & 0x00) == 0x00) {
+                // Disable...
+                cp_state.charger_relay_enabled = false;
+                cp_state.charge_state = ChargeStateEnum::StopCharge;
             }
         }
         ChargeStateEnum::ContactorRequest => {
@@ -149,10 +158,11 @@ pub fn init(mut cp_state: &mut CPState, id: u32, data: &[u8]) {
             if cp_state.contactor_request_state != ContactorRequestStateEnum::ContactorNone {
                 cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorNone;
                 cp_state.cbtxva_request = false;
-                cp_state.desired_cp_led_state = LEDStateEnum::WhiteBlue;
-                cp_state.charger_type = ChargerTypeEnum::None;
-                cp_state.charge_state = ChargeStateEnum::ContactorWaitRequest;
             }
+            cp_state.desired_cp_led_state = LEDStateEnum::WhiteBlue;
+            cp_state.charger_type = ChargerTypeEnum::None;
+            cp_state.charge_state = ChargeStateEnum::ContactorWaitRequest;
+
             if charge_idle {
                 cp_state.charge_state = ChargeStateEnum::ChargeIdle;
             }

@@ -48,8 +48,9 @@ pub fn serial_console(
         if ten_ms_counter % 50 == 0 {
             uprintln!(
                 tx,
-                "\x1B[20HInit: true\x1B[20;20HFaulted?: {}\x1B[20;40HVehicle Locked: {}",
-                !cp_state.cp_init,
+                "\x1B[20HInit Seq: {}\x1B[20;20HInitialized?: {}\x1B[20;40HVehicle Locked: {}",
+                cp_state.init_sequence,
+                cp_state.cp_init,
                 cp_state.vehicle_locked
             );
         }

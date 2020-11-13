@@ -7,6 +7,7 @@ pub mod hardware_init;
 pub mod hundred_ms_loop;
 pub mod process_cp;
 pub mod process_door;
+pub mod process_init;
 pub mod process_serial;
 pub mod serial_console;
 pub mod ten_ms_loop;

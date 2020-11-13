@@ -1,11 +1,12 @@
 #![deny(warnings)]
+use crate::types::CPState;
 use crate::types::HVCAN;
 use crate::types::{BaseID, DataFrame, ID};
 use crate::utils::checksum_calc;
 
-pub fn init(mut fifty_ms_counter: u8, hv_can: &HVCAN) -> u8 {
+pub fn init(mut fifty_ms_counter: u8, hv_can: &HVCAN, cp_state: &mut CPState) -> u8 {
     let fifty_ms_checksum_count: u8 = fifty_ms_counter % 16;
-    p2(hv_can, fifty_ms_checksum_count);
+    p2(hv_can, fifty_ms_checksum_count, cp_state);
     u7(hv_can, fifty_ms_checksum_count);
     if fifty_ms_counter < 255 {
         fifty_ms_counter = fifty_ms_counter + 1;
@@ -16,7 +17,13 @@ pub fn init(mut fifty_ms_counter: u8, hv_can: &HVCAN) -> u8 {
     fifty_ms_counter
 }
 
-pub fn p2(hv_can: &HVCAN, fifty_ms_checksum_count: u8) {
+pub fn p2(hv_can: &HVCAN, fifty_ms_checksum_count: u8, cp_state: &mut CPState) {
+
+
+
+
+
+
     // Checksum correct.
     let id: u16 = 0x000;
     let size: u8 = 8;
@@ -37,7 +44,11 @@ pub fn p2(hv_can: &HVCAN, fifty_ms_checksum_count: u8) {
         }
         1 | _ => {
             p2[0] = 0x00;
-            p2[1] = 0x00;
+            if cp_state.cp_init {
+                p2[1] = 0x00;
+            } else {
+                p2[1] = 0x00;
+            }
             p2[2] = 0x00;
             p2[3] = 0x00;
             p2[4] = 0x00;

@@ -7,7 +7,7 @@ pub fn init(mut hundred_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVC
     u3(hv_can, &mut cp_state);
     ctfa(hv_can);
     scss(hv_can);
-    da(hv_can);
+    da(hv_can, &mut cp_state);
     u4(hv_can, &mut cp_state);
     vvvsv(hv_can, hundred_ms_counter);
     counter(hv_can, hundred_ms_counter);
@@ -82,14 +82,20 @@ pub fn scss(hv_can: &HVCAN) {
         .ok();
 }
 
-pub fn da(hv_can: &HVCAN) {
+pub fn da(hv_can: &HVCAN, cp_state: &mut CPState) {
     let id: u16 = 0x000;
     let size: u8 = 2;
     let mut da_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
     da_frame.set_data_length(size.into());
     let da = da_frame.data_as_mut();
-    da[0] = 0x00;
+    if cp_state.cp_init {
+        da[0] = 0x00;
+    } else {
+        da[0] = 0x00;
+    }
+
     da[1] = 0x00;
+
     hv_can.transmit(&da_frame.into()).ok();
 }
 

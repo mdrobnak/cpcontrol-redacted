@@ -198,7 +198,7 @@ fn main() -> ! {
         // 50 ms - Done
         if (elapsed - previous_50_ms_ts) >= FIFTY_MS {
             previous_50_ms_ts = elapsed;
-            fifty_ms_counter = fifty_ms_loop(fifty_ms_counter, &hv_can);
+            fifty_ms_counter = fifty_ms_loop(fifty_ms_counter, &hv_can, &mut cp_state);
         }
 
         // 100 ms - Done
@@ -223,7 +223,7 @@ fn main() -> ! {
         // 1000 ms - Done
         if (elapsed - previous_1000_ms_ts) >= THOUSAND_MS {
             previous_1000_ms_ts = elapsed;
-            if !cp_state.cp_init || cp_state.charger_relay_enabled {
+            if cp_state.charger_relay_enabled {
                 //            if !cp_state.latch_enabled {
                 // If the relay is enabled, this value should be low.
                 // If the fault line is active (and therefore cp_init is false), this should be
@@ -233,8 +233,7 @@ fn main() -> ! {
                 latch_out.set_high().ok();
             }
 
-            thousand_ms_counter =
-                thousand_ms_loop(thousand_ms_counter, &mut cp_state, &hv_can, &SEMAPHORE);
+            thousand_ms_counter = thousand_ms_loop(thousand_ms_counter, &mut cp_state, &hv_can);
         }
     }
 }

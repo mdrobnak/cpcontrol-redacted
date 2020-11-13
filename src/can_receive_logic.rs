@@ -1,6 +1,7 @@
 #![deny(warnings)]
 use crate::process_cp::init as process_cp;
 use crate::process_door::init as process_door;
+use crate::process_init::init as process_init;
 use crate::types::*;
 
 pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: &mut CPState) {
@@ -19,6 +20,12 @@ pub fn init(can_frame: &CanFrame, elapsed: u32, mut cp_state: &mut CPState) {
         // Do something about the door
         if id == 0x00F {
             process_door(&mut cp_state, id, data);
+        }
+
+        if id == 0x00E {
+            // Handle a hello frame
+            cp_state.init_sequence = 0;
+            process_init(&mut cp_state, elapsed);
         }
 
         // Main state machine for charge state here
