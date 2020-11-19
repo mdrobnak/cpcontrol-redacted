@@ -139,8 +139,11 @@ pub fn init(mut cp_state: &mut CPState, id: u32, data: &[u8]) {
             }
         }
         ChargeStateEnum::ContactorFixed => {
-            // If EVSE Request, enable the relay.
-            if (id == 0x00F) && ((data[0] & 0x00) == 0x00) {
+            // If EVSE Request or Accept, enable the relay.
+
+            let evse_request: bool = (id == 0x00F) && ((data[0] & 0x00) == 0x00);
+            let evse_accept: bool = (id == 0x00F) && ((data[0] & 0x00) == 0x00);
+            if evse_request || evse_accept {
                 if cp_state.charger_type == ChargerTypeEnum::AC {
                     cp_state.charger_relay_enabled = true;
                     cp_state.desired_cp_led_state = LEDStateEnum::GreenBlink;
