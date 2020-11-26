@@ -22,6 +22,13 @@ pub enum CPTypeEnum {
     IECCCS = 4,
 }
 
+#[derive(PartialEq, Eq)]
+pub enum CPVerEnum {
+    Fw2018 = 0,
+    Fw2019 = 1,
+    Fw2020 = 2,
+}
+
 pub enum DoorStateEnum {
     DoorIdle = 0,
     DoorOpen = 1,
@@ -45,6 +52,7 @@ impl Display for ChargeStateEnum {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::result::Result<(), core::fmt::Error> {
         match self {
             ChargeStateEnum::TimeOut => write!(f, "Timeout"),
+            ChargeStateEnum::Init => write!(f, "Not Ready"),
             ChargeStateEnum::ChargePortError => write!(f, "Charge Port Error"),
             ChargeStateEnum::ChargeIdle => write!(f, "Idle"),
             ChargeStateEnum::ACBlocked => write!(f, "AC Blocked"),
@@ -56,16 +64,19 @@ impl Display for ChargeStateEnum {
         }
     }
 }
+
+#[derive(PartialEq, Eq)]
 pub enum ChargeStateEnum {
-    TimeOut = 0,
-    ChargePortError = 1,
-    ChargeIdle = 2,
-    ACBlocked = 3,
-    WaitForComms = 4,
-    ContactorWaitRequest = 5,
-    ContactorRequest = 6,
-    ContactorFixed = 7,
-    StopCharge = 8,
+    TimeOut,
+    Init,
+    ChargePortError,
+    ChargeIdle,
+    ACBlocked,
+    WaitForComms,
+    ContactorWaitRequest,
+    ContactorRequest,
+    ContactorFixed,
+    StopCharge,
 }
 //pub enum charge_stateText[9][20] =
 //{ "Timeout", "Charge Port Error", "Proximity Idle", "AC Blocked",
@@ -124,6 +135,7 @@ impl RTCUpdate {
 pub struct CPState {
     pub activity_list: ArrayDeque<[String<U60>; 4], Wrapping>,
     pub auto_start: bool,
+    pub app_hash: u32,
     pub charger_relay_enabled: bool,
     pub charger_type: ChargerTypeEnum,
     pub charge_state: ChargeStateEnum,
@@ -135,6 +147,7 @@ pub struct CPState {
     pub desired_cp_led_state: LEDStateEnum,
     pub ecu_type: CPTypeEnum,
     pub evse_request: bool,
+    pub fw_ver: CPVerEnum,
     pub init_sequence: u8,
     pub init_ts: u32,
     pub latch_enabled: bool,
@@ -163,10 +176,11 @@ impl CPState {
         // we create a method to instantiate `Foo`
         Self {
             activity_list: ArrayDeque::new(),
+            app_hash: 0,
             auto_start: false,
             charger_relay_enabled: false,
             charger_type: ChargerTypeEnum::None,
-            charge_state: ChargeStateEnum::StopCharge,
+            charge_state: ChargeStateEnum::Init,
             cbtxva_request: false,
             contactor_request_state: ContactorRequestStateEnum::ContactorNone,
             cp_comm_timeout: true,
@@ -175,6 +189,7 @@ impl CPState {
             desired_cp_led_state: LEDStateEnum::WhiteBlue,
             ecu_type: CPTypeEnum::US,
             evse_request: false,
+            fw_ver: CPVerEnum::Fw2019,
             init_sequence: 3,
             init_ts: 0,
             latch_enabled: true,

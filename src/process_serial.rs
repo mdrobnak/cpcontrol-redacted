@@ -1,27 +1,13 @@
 #![deny(warnings)]
 use crate::types::CPState;
 use crate::types::*;
+use crate::{uprint, uprintln};
 use core::fmt::Write;
 use heapless::consts::U60;
 use heapless::String;
 use rtcc::Rtcc;
 use rtcc::Timelike;
 use ufmt::uwrite;
-
-macro_rules! uprint {
-    ($serial:expr, $($arg:tt)*) => {
-        $serial.write_fmt(format_args!($($arg)*)).ok()
-    };
-}
-
-macro_rules! uprintln {
-    ($serial:expr, $fmt:expr) => {
-        uprint!($serial, concat!($fmt, "\n"))
-    };
-    ($serial:expr, $fmt:expr, $($arg:tt)*) => {
-        uprint!($serial, concat!($fmt, "\n"), $($arg)*)
-    };
-}
 
 pub fn init(
     command: u8,
@@ -229,8 +215,11 @@ pub fn normal_input(
             let mut s: String<U60> = String::new();
             uwrite!(s, "{} - Starting Charge!", elapsed).ok();
             cp_state.activity_list.push_back(s);
-            cp_state.charger_relay_enabled = true;
-            cp_state.set_led(LEDStateEnum::GreenBlink);
+            if cp_state.charger_type == ChargerTypeEnum::AC {
+                cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorACRequest;
+            } else if cp_state.charger_type == ChargerTypeEnum::DC {
+                cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorDCRequest;
+            }
         }
         // C
         0x43 => {

@@ -31,7 +31,11 @@ pub fn vvvm(hv_can: &HVCAN) {
 
 pub fn tatata(hv_can: &HVCAN, cp_state: &mut CPState) {
     let id: u16 = 0x000;
-    let size: u8 = 4;
+    let size: u8 = if cp_state.fw_ver == CPVerEnum::Fw2020 {
+        5
+    } else {
+        4
+    };
     let mut tatata_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
     tatata_frame.set_data_length(size.into());
     let tatata = tatata_frame.data_as_mut();
@@ -87,6 +91,10 @@ pub fn tatata(hv_can: &HVCAN, cp_state: &mut CPState) {
         DoorStateEnum::DoorOpen | DoorStateEnum::DoorClosed => {
             // Do nothing.
         }
+    }
+    if cp_state.fw_ver == CPVerEnum::Fw2020 {
+        tatata[0] |= 0x00;
+        tatata[4] = 0x00;
     }
     hv_can.transmit(&tatata_frame.into()).ok();
 }

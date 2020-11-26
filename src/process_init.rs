@@ -11,6 +11,7 @@ pub fn init(mut cp_state: &mut CPState, elapsed: u32) {
             cp_state.init_ts = elapsed;
             cp_state.cp_comm_timeout = false;
             cp_state.previous_cptod_ts = elapsed;
+            cp_state.charge_state = ChargeStateEnum::Init;
         }
         1 => {
             if (elapsed - cp_state.init_ts) >= ph1_ts {

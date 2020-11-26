@@ -1,22 +1,9 @@
 #![deny(warnings)]
 use crate::types::*;
+use crate::{uprint, uprintln};
 use core::fmt::Write;
 use rtcc::Rtcc;
 
-macro_rules! uprint {
-    ($serial:expr, $($arg:tt)*) => {
-        $serial.write_fmt(format_args!($($arg)*)).ok()
-    };
-}
-
-macro_rules! uprintln {
-    ($serial:expr, $fmt:expr) => {
-        uprint!($serial, concat!($fmt, "\n"))
-    };
-    ($serial:expr, $fmt:expr, $($arg:tt)*) => {
-        uprint!($serial, concat!($fmt, "\n"), $($arg)*)
-    };
-}
 pub fn serial_console(
     tx: &mut SerialConsoleOutput,
     cp_state: &CPState,
@@ -30,6 +17,7 @@ pub fn serial_console(
     rtc_data: &RTCUpdate,
 ) {
     const NO_ATTRIB: &str = "\x1B[0m";
+    const ERASE_EOL: &str = "\x1B[0K";
     if cp_state.rtc_update {
         set_rtc(tx, rtc, rtc_data, ten_ms_counter);
     } else if verbose_console {
@@ -40,7 +28,7 @@ pub fn serial_console(
         if ten_ms_counter % 10 == 0 {
             let mut line = 15;
             for i in cp_state.activity_list.iter() {
-                uprintln!(tx, "\x1B[{};3H{}", line, i);
+                uprintln!(tx, "\x1B[{};3H{}{}\x1B[{};64H|", line, i, ERASE_EOL, line);
                 line = line + 1;
             }
         }
@@ -48,9 +36,15 @@ pub fn serial_console(
         if ten_ms_counter % 50 == 0 {
             uprintln!(
                 tx,
-                "\x1B[20HInit Seq: {}\x1B[20;20HInitialized?: {}\x1B[20;40HVehicle Locked: {}",
-                cp_state.init_sequence,
-                cp_state.cp_init,
+                "\x1B[20HCP Ver: {:X}\x1B[20;20HCP Msg Type: {}\x1B[20;40HVehicle Locked: {}",
+                cp_state.app_hash,
+                if cp_state.fw_ver == CPVerEnum::Fw2020 {
+                    2020
+                } else if cp_state.fw_ver == CPVerEnum::Fw2019 {
+                    2019
+                } else {
+                    2018
+                },
                 cp_state.vehicle_locked
             );
         }
@@ -61,8 +55,38 @@ pub fn serial_console(
             cp_state.charger_type
         );
         uprint!(tx, "\x1B[21;40HLED State: ");
-        uprintln!(tx, "\x1B[34mBlue Solid{}", NO_ATTRIB);
-        uprint!(tx, "\x1B[22HState: {} \x1B[0K", cp_state.charge_state);
+        match cp_state.desired_cp_led_state {
+            LEDStateEnum::WhiteBlue => {
+                uprintln!(tx, "\x1B[34mBlue Solid{}{}", ERASE_EOL, NO_ATTRIB);
+            }
+            LEDStateEnum::BlueBlink => {
+                uprintln!(tx, "\x1B[5;34mBlue Blinking{}{}", ERASE_EOL, NO_ATTRIB);
+            }
+            LEDStateEnum::GreenBlink => {
+                uprintln!(tx, "\x1B[5;32mGreen Blinking{}{}", ERASE_EOL, NO_ATTRIB);
+            }
+            LEDStateEnum::GreenSolid => {
+                uprintln!(tx, "\x1B[32mGreen Solid{}{}", ERASE_EOL, NO_ATTRIB);
+            }
+            LEDStateEnum::Rainbow => {
+                let res = (ten_ms_counter % 112) >> 2;
+                uprintln!(
+                    tx,
+                    "\x1B[{}mR\x1B[{}mA\x1B[{}mI\x1B[{}mN\x1B[{}mB\x1B[{}mO\x1B[{}mW{}{}",
+                    31 + ((res + 6) % 7),
+                    31 + ((res + 5) % 7),
+                    31 + ((res + 4) % 7),
+                    31 + ((res + 3) % 7),
+                    31 + ((res + 2) % 7),
+                    31 + ((res + 1) % 7),
+                    31 + ((res + 0) % 7),
+                    ERASE_EOL,
+                    NO_ATTRIB
+                );
+            }
+        }
+
+        uprint!(tx, "\x1B[22HState: {}{}", cp_state.charge_state, ERASE_EOL);
         uprintln!(tx, "\x1B[22;30HCAN Loop Status: Probably Fine.");
         uprintln!(tx, "\x1B[23HTime: {}", time);
     } else if ten_ms_counter % 50 == 0 {

@@ -3,9 +3,10 @@ use crate::types::*;
 use crate::utils::checksum_calc;
 
 pub fn init(mut hundred_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVCAN) -> u8 {
+    ltbxtxf(hv_can);
     u2(hv_can);
     u3(hv_can, &mut cp_state);
-    ctfa(hv_can);
+    ctfa(hv_can, cp_state, false);
     scss(hv_can);
     da(hv_can, &mut cp_state);
     u4(hv_can, &mut cp_state);
@@ -19,6 +20,23 @@ pub fn init(mut hundred_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVC
         hundred_ms_counter = 0;
     }
     hundred_ms_counter
+}
+
+pub fn ltbxtxf(hv_can: &HVCAN) {
+    let id: u16 = 0x000;
+    let size: u8 = 8;
+    let mut ltbxtxf_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
+    ltbxtxf_frame.set_data_length(size.into());
+    let ltbxtxf = ltbxtxf_frame.data_as_mut();
+    ltbxtxf[0] = 0x00;
+    ltbxtxf[1] = 0x00;
+    ltbxtxf[2] = 0x00;
+    ltbxtxf[3] = 0x00;
+    ltbxtxf[4] = 0x00;
+    ltbxtxf[5] = 0x00;
+    ltbxtxf[6] = 0x00;
+    ltbxtxf[7] = 0x00;
+    hv_can.transmit(&ltbxtxf_frame.into()).ok();
 }
 
 pub fn u2(hv_can: &HVCAN) {
@@ -53,13 +71,20 @@ pub fn u3(hv_can: &HVCAN, cp_state: &mut CPState) {
     hv_can.transmit(&u3_frame.into()).ok();
 }
 
-pub fn ctfa(hv_can: &HVCAN) {
+pub fn ctfa(hv_can: &HVCAN, cp_state: &mut CPState, fault_set: bool) {
+    // TODO: Fix fault_set state.
     let id: u16 = 0x000;
     let size: u8 = 1;
     let mut ctfa_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
     ctfa_frame.set_data_length(size.into());
     let ctfa = ctfa_frame.data_as_mut();
     ctfa[0] = 0x00;
+    if fault_set {
+        ctfa[0] += 0x00;
+    }
+    if cp_state.charger_relay_enabled {
+        ctfa[0] -= 0x00;
+    }
     hv_can.transmit(&ctfa_frame.into()).ok();
 }
 

@@ -22,22 +22,22 @@ pub fn init(
     ccaa(hv_can, &mut cp_state);
     cbtxva(hv_can, &mut cp_state);
     cbtxt(hv_can, &mut cp_state);
+    sid845(hv_can, &mut cp_state);
     cs(hv_can, &mut cp_state);
 
     // Check for timeout with CP ECU
-    if (elapsed - cp_state.previous_cptod_ts) > 1000 {
-        let mut s: String<U60> = String::new();
-        uwrite!(
-            s,
-            "{} - Timeout - {}",
-            elapsed,
-            (elapsed - cp_state.previous_cptod_ts)
-        )
-        .ok();
-        cp_state.activity_list.push_back(s);
+    // FIXME: Temporarily move from 1 to 3.5 second timeout.
+    if (elapsed - cp_state.previous_cptod_ts) > 3500 {
+        // Only log a message if we've transitioned to an OK state before.
+        if !cp_state.cp_comm_timeout {
+            let mut s: String<U60> = String::new();
+            uwrite!(s, "{} - Timeout", elapsed,).ok();
+            cp_state.activity_list.push_back(s);
+        }
 
         cp_state.cp_comm_timeout = true;
         cp_state.cp_init = false;
+        cp_state.init_sequence = 3;
         cp_state.charge_state = ChargeStateEnum::TimeOut;
     }
 
@@ -153,12 +153,16 @@ pub fn ccaa(hv_can: &HVCAN, cp_state: &mut CPState) {
     let mut ccaa_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
     ccaa_frame.set_data_length(size.into());
 
-    if cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorACRequest {
-        // Do stuff to make the contactors correct.
-        if cp_state.cbtxva_request {
-            cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorACEnable;
-            cp_state.charge_state = ChargeStateEnum::ContactorRequest;
-        }
+    if cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorACRequest
+        && cp_state.cbtxva_request
+    {
+        cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorACEnable;
+        cp_state.charge_state = ChargeStateEnum::ContactorRequest;
+    } else if cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorDCRequest
+        && cp_state.cbtxva_request
+    {
+        cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorDCEnable;
+        cp_state.charge_state = ChargeStateEnum::ContactorRequest;
     }
 
     let ccaa = ccaa_frame.data_as_mut();
@@ -170,7 +174,8 @@ pub fn ccaa(hv_can: &HVCAN, cp_state: &mut CPState) {
     ccaa[5] = 0x00;
 
     if cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorACEnable {
-        // Do stuff?
+        ccaa[5] = 0x00;
+    } else if cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorDCEnable {
         ccaa[5] = 0x00;
     }
     hv_can.transmit(&ccaa_frame.into()).ok();
@@ -233,6 +238,57 @@ pub fn cbtxt(hv_can: &HVCAN, cp_state: &mut CPState) {
     cbtxt[7] = 0x00;
     hv_can.transmit(&cbtxt_frame.into()).ok();
 }
+pub fn sid845(hv_can: &HVCAN, cp_state: &mut CPState) {
+    let id: u16 = 0x000;
+    let size: u8 = 8;
+    let mut cs_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
+    cs_frame.set_data_length(size.into());
+
+    let cs = cs_frame.data_as_mut();
+
+    cs[0] = 0x00;
+    cs[1] = 0x00;
+    cs[2] = 0x00;
+    cs[3] = 0x00;
+    cs[4] = 0x00;
+
+    if cp_state.charger_relay_enabled {
+        cs[3] += 0x00;
+    } else if cp_state.cbtxva_request
+        && (cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorACRequest
+            || cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorACEnable)
+    {
+        cs[3] += 0x00;
+    }
+    match cp_state.desired_cp_led_state {
+        LEDStateEnum::WhiteBlue => {}
+
+        LEDStateEnum::BlueBlink => {
+            cs[3] += 0x00;
+        }
+
+        LEDStateEnum::GreenBlink => {
+            cs[3] += 0x00;
+        }
+
+        LEDStateEnum::GreenSolid => {
+            cs[3] += 0x00;
+        }
+
+        LEDStateEnum::Rainbow => {
+            cs[3] += 0x00;
+        }
+    }
+
+    if cp_state.charger_relay_enabled {
+        cs[4] += 0x00;
+    }
+    cs[5] = 0x00;
+    cs[6] = 0x00;
+    cs[7] = 0x00;
+
+    hv_can.transmit(&cs_frame.into()).ok();
+}
 
 pub fn cs(hv_can: &HVCAN, cp_state: &mut CPState) {
     let id: u16 = 0x000;
@@ -261,6 +317,8 @@ pub fn cs(hv_can: &HVCAN, cp_state: &mut CPState) {
             || cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorACEnable)
     {
         cs[4] += 0x00;
+    } else if cp_state.charge_state == ChargeStateEnum::StopCharge {
+        cs[4] = 0x00;
     }
     match cp_state.desired_cp_led_state {
         LEDStateEnum::WhiteBlue => {}

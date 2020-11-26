@@ -42,6 +42,12 @@ pub fn usx(hv_can: &HVCAN) {
     let mut usx_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
     usx_frame.set_data_length(size.into());
     let usx = usx_frame.data_as_mut();
+
+    let new_id: u16 = 0x000;
+    let mut usy_frame = DataFrame::new(ID::BaseID(BaseID::new(new_id)));
+    usy_frame.set_data_length(size.into());
+    let usy = usy_frame.data_as_mut();
+
     usx[0] = 0x00;
     usx[1] = 0x00;
     usx[2] = 0x00;
@@ -51,6 +57,16 @@ pub fn usx(hv_can: &HVCAN) {
     usx[6] = 0x00;
     usx[7] = 0x00;
     hv_can.transmit(&usx_frame.into()).ok();
+
+    usy[0] = 0x00;
+    usy[1] = 0x00;
+    usy[2] = 0x00;
+    usy[3] = 0x00;
+    usy[4] = 0x00;
+    usy[5] = 0x00;
+    usy[6] = 0x00;
+    usy[7] = 0x00;
+    hv_can.transmit(&usy_frame.into()).ok();
 }
 
 pub fn tto(hv_can: &HVCAN) {

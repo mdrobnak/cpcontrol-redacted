@@ -8,6 +8,14 @@ pub fn init(mut cp_state: &mut CPState, id: u32, data: &[u8]) {
 
     // Main state machine for charge state here
     match cp_state.charge_state {
+        ChargeStateEnum::Init => {
+            // States allowed - ChargeIdle or Error.
+            if cp_state.cp_init && charge_idle {
+                cp_state.charge_state = ChargeStateEnum::ChargeIdle;
+            } else if cp_state.cp_init && charge_port_error {
+                cp_state.charge_state = ChargeStateEnum::ChargePortError;
+            }
+        }
         ChargeStateEnum::ChargePortError => {
             // States allowed - ChargeIdle, idle
             if charge_idle {
@@ -107,6 +115,11 @@ pub fn init(mut cp_state: &mut CPState, id: u32, data: &[u8]) {
             {
                 cp_state.contactor_request_state = ContactorRequestStateEnum::ContactorDCRequest;
                 cp_state.charger_type = ChargerTypeEnum::DC;
+                if cp_state.auto_start {
+                    cp_state.contactor_request_state =
+                        ContactorRequestStateEnum::ContactorDCRequest;
+                }
+
 
             }
             if (id == 0x00F) && ((data[0] & 0x00) == 0x00) {

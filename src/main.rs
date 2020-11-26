@@ -8,14 +8,12 @@
 // Validate that serial doesn't mess with timing on new code, maybe move back to 115.2k?
 // 10 ms logic.
 // Search for and remove insances of .ok() - Create struct var with output, determine health.
-// J1772 AC charging logic
 // Handle power-on with cable in place (sticks in Charge Port Error)
 // Learn how to handle interrupt sources
 // RTC setup - Alarm code needs to be implemented, or using math
 // IVT-S Read Voltage
 // SimpBMS Voltage
 // EEPROM Settings
-// Handle door stuff better.
 // Serial for Wifi
 
 extern crate cortex_m;
