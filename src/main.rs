@@ -196,26 +196,28 @@ fn main() -> ! {
         // 50 ms - Done
         if (elapsed - previous_50_ms_ts) >= FIFTY_MS {
             previous_50_ms_ts = elapsed;
-            fifty_ms_counter = fifty_ms_loop(fifty_ms_counter, &hv_can, &mut cp_state);
+            fifty_ms_counter = fifty_ms_loop(elapsed, fifty_ms_counter, &hv_can, &mut cp_state);
         }
 
         // 100 ms - Done
         if (elapsed - previous_100_ms_ts) >= HUNDRED_MS {
             previous_100_ms_ts = elapsed;
-            hundred_ms_counter = hundred_ms_loop(hundred_ms_counter, &mut cp_state, &hv_can);
+            hundred_ms_counter =
+                hundred_ms_loop(elapsed, hundred_ms_counter, &mut cp_state, &hv_can);
         }
 
         // 250 ms - Done
         if (elapsed - previous_250_ms_ts) >= TWO_FIFTY_MS {
             previous_250_ms_ts = elapsed;
-            two_fifty_ms_counter = two_fifty_ms_loop(two_fifty_ms_counter, &hv_can);
+            two_fifty_ms_counter =
+                two_fifty_ms_loop(elapsed, two_fifty_ms_counter, &mut cp_state, &hv_can);
         }
 
         // 500 ms - Done
         if (elapsed - previous_500_ms_ts) >= FIVE_HUNDRED_MS {
             previous_500_ms_ts = elapsed;
             five_hundred_ms_counter =
-                five_hundred_ms_loop(five_hundred_ms_counter, &mut cp_state, &hv_can);
+                five_hundred_ms_loop(elapsed, five_hundred_ms_counter, &mut cp_state, &hv_can);
         }
 
         // 1000 ms - Done
@@ -231,7 +233,8 @@ fn main() -> ! {
                 latch_out.set_high().ok();
             }
 
-            thousand_ms_counter = thousand_ms_loop(thousand_ms_counter, &mut cp_state, &hv_can);
+            thousand_ms_counter =
+                thousand_ms_loop(elapsed, thousand_ms_counter, &mut cp_state, &hv_can);
         }
     }
 }

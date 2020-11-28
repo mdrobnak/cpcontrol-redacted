@@ -209,6 +209,7 @@ impl CPState {
 // Why? Remove reference to hal, so that it does not need to be included in many spots with
 // conditional code around it.
 pub type BaseID = hal::can::BaseID;
+pub type CanError = hal::can::CanError;
 pub type CanFrame = hal::can::CanFrame;
 pub type DataFrame = hal::can::DataFrame;
 pub type ID = hal::can::ID;

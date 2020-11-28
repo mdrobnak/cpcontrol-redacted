@@ -3,6 +3,8 @@ use crate::process_init::init as process_init;
 use crate::serial_console::serial_console;
 use crate::types::*;
 
+// Logging
+use crate::handle_can_error;
 use heapless::consts::U60;
 use heapless::String;
 use ufmt::uwrite;
@@ -18,12 +20,24 @@ pub fn init(
     rtc_data: &RTCUpdate,
 ) -> u16 {
     process_init(&mut cp_state, elapsed);
-    u1(ten_ms_counter, hv_can);
-    ccaa(hv_can, &mut cp_state);
-    cbtxva(hv_can, &mut cp_state);
-    cbtxt(hv_can, &mut cp_state);
-    sid845(hv_can, &mut cp_state);
-    cs(hv_can, &mut cp_state);
+    u1(ten_ms_counter, hv_can).unwrap_or_else(|error| {
+        handle_can_error!(u1, error, "10ms_0", cp_state, elapsed);
+    });
+    ccaa(hv_can, &mut cp_state).unwrap_or_else(|error| {
+        handle_can_error!(ccaa, error, "10ms_1", cp_state, elapsed);
+    });
+    cbtxva(hv_can, &mut cp_state).unwrap_or_else(|error| {
+        handle_can_error!(cbtxva, error, "10ms_2", cp_state, elapsed);
+    });
+    cbtxt(hv_can, &mut cp_state).unwrap_or_else(|error| {
+        handle_can_error!(cbtxt, error, "10ms_3", cp_state, elapsed);
+    });
+    sid845(hv_can, &mut cp_state).unwrap_or_else(|error| {
+        handle_can_error!(sid845, error, "10ms_4", cp_state, elapsed);
+    });
+    cs(hv_can, &mut cp_state).unwrap_or_else(|error| {
+        handle_can_error!(cs, error, "10ms_5", cp_state, elapsed);
+    });
 
     // Check for timeout with CP ECU
     // FIXME: Temporarily move from 1 to 3.5 second timeout.
@@ -62,7 +76,7 @@ pub fn init(
     ten_ms_counter
 }
 
-pub fn u1(ten_ms_counter: u16, hv_can: &HVCAN) {
+pub fn u1(ten_ms_counter: u16, hv_can: &HVCAN) -> Result<(), CanError> {
 
     let id: u16 = 0x000;
     let size: u8 = 8;
@@ -144,10 +158,10 @@ pub fn u1(ten_ms_counter: u16, hv_can: &HVCAN) {
             u1[7] = 0x00;
         }
     }
-    hv_can.transmit(&u1_frame.into()).ok();
+    hv_can.transmit(&u1_frame.into())
 }
 
-pub fn ccaa(hv_can: &HVCAN, cp_state: &mut CPState) {
+pub fn ccaa(hv_can: &HVCAN, cp_state: &mut CPState) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 6;
     let mut ccaa_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -178,10 +192,10 @@ pub fn ccaa(hv_can: &HVCAN, cp_state: &mut CPState) {
     } else if cp_state.contactor_request_state == ContactorRequestStateEnum::ContactorDCEnable {
         ccaa[5] = 0x00;
     }
-    hv_can.transmit(&ccaa_frame.into()).ok();
+    hv_can.transmit(&ccaa_frame.into())
 }
 
-pub fn cbtxva(hv_can: &HVCAN, cp_state: &mut CPState) {
+pub fn cbtxva(hv_can: &HVCAN, cp_state: &mut CPState) -> Result<(), CanError> {
 
 
 
@@ -199,10 +213,10 @@ pub fn cbtxva(hv_can: &HVCAN, cp_state: &mut CPState) {
         cbtxva[2] += 0x00;
     }
     cbtxva[3] = 0x00;
-    hv_can.transmit(&cbtxva_frame.into()).ok();
+    hv_can.transmit(&cbtxva_frame.into())
 }
 
-pub fn cbtxt(hv_can: &HVCAN, cp_state: &mut CPState) {
+pub fn cbtxt(hv_can: &HVCAN, cp_state: &mut CPState) -> Result<(), CanError> {
 
 
 
@@ -236,9 +250,10 @@ pub fn cbtxt(hv_can: &HVCAN, cp_state: &mut CPState) {
     cbtxt[5] = 0x00;
     cbtxt[6] = 0x00;
     cbtxt[7] = 0x00;
-    hv_can.transmit(&cbtxt_frame.into()).ok();
+    hv_can.transmit(&cbtxt_frame.into())
 }
-pub fn sid845(hv_can: &HVCAN, cp_state: &mut CPState) {
+
+pub fn sid845(hv_can: &HVCAN, cp_state: &mut CPState) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut cs_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -287,10 +302,10 @@ pub fn sid845(hv_can: &HVCAN, cp_state: &mut CPState) {
     cs[6] = 0x00;
     cs[7] = 0x00;
 
-    hv_can.transmit(&cs_frame.into()).ok();
+    hv_can.transmit(&cs_frame.into())
 }
 
-pub fn cs(hv_can: &HVCAN, cp_state: &mut CPState) {
+pub fn cs(hv_can: &HVCAN, cp_state: &mut CPState) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut cs_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -343,5 +358,5 @@ pub fn cs(hv_can: &HVCAN, cp_state: &mut CPState) {
     cs[6] = 0x00;
     cs[7] = 0x00;
 
-    hv_can.transmit(&cs_frame.into()).ok();
+    hv_can.transmit(&cs_frame.into())
 }

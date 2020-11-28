@@ -1,11 +1,21 @@
 #![deny(warnings)]
-use crate::types::HVCAN;
-use crate::types::{BaseID, DataFrame, ID};
+use crate::types::{BaseID, CPState, CanError, DataFrame, HVCAN, ID};
 use heapless::consts::*;
 use heapless::String;
 
-pub fn init(mut two_fifty_ms_counter: u8, hv_can: &HVCAN) -> u8 {
-    vin405(hv_can, two_fifty_ms_counter);
+// Logging
+use crate::handle_can_error;
+use ufmt::uwrite;
+
+pub fn init(
+    elapsed: u32,
+    mut two_fifty_ms_counter: u8,
+    cp_state: &mut CPState,
+    hv_can: &HVCAN,
+) -> u8 {
+    vin405(hv_can, two_fifty_ms_counter).unwrap_or_else(|error| {
+        handle_can_error!(vin405, error, "250ms_0", cp_state, elapsed);
+    });
     if two_fifty_ms_counter < 255 {
         two_fifty_ms_counter = two_fifty_ms_counter + 1;
     } else {
@@ -15,7 +25,7 @@ pub fn init(mut two_fifty_ms_counter: u8, hv_can: &HVCAN) -> u8 {
     two_fifty_ms_counter
 }
 
-pub fn vin405(hv_can: &HVCAN, two_fifty_ms_counter: u8) {
+pub fn vin405(hv_can: &HVCAN, two_fifty_ms_counter: u8) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut vin405_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -58,5 +68,5 @@ pub fn vin405(hv_can: &HVCAN, two_fifty_ms_counter: u8) {
         }
     }
 
-    hv_can.transmit(&vin405_frame.into()).ok();
+    hv_can.transmit(&vin405_frame.into())
 }

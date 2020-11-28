@@ -1,12 +1,36 @@
 #![deny(warnings)]
-use crate::types::{BaseID, CPState, DataFrame, HVCAN, ID};
+use crate::types::{BaseID, CPState, CanError, DataFrame, HVCAN, ID};
 
-pub fn init(mut thousand_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVCAN) -> u8 {
-    usx(hv_can);
-    tto(hv_can);
-    rss(hv_can);
-    u5(hv_can);
-    tcgd(&mut cp_state, hv_can);
+// Logging
+use crate::handle_can_error;
+use heapless::consts::U60;
+use heapless::String;
+use ufmt::uwrite;
+
+pub fn init(
+    elapsed: u32,
+    mut thousand_ms_counter: u8,
+    mut cp_state: &mut CPState,
+    hv_can: &HVCAN,
+) -> u8 {
+    usx(hv_can).unwrap_or_else(|error| {
+        handle_can_error!(usx, error, "1000ms_0", cp_state, elapsed);
+    });
+    tto(hv_can).unwrap_or_else(|error| {
+        handle_can_error!(tto, error, "1000ms_1", cp_state, elapsed);
+    });
+    rss(hv_can).unwrap_or_else(|error| {
+        handle_can_error!(rss, error, "1000ms_2", cp_state, elapsed);
+    });
+    usy(hv_can).unwrap_or_else(|error| {
+        handle_can_error!(usy, error, "1000ms_3", cp_state, elapsed);
+    });
+    u5(hv_can).unwrap_or_else(|error| {
+        handle_can_error!(u5, error, "1000ms_4", cp_state, elapsed);
+    });
+    tcgd(&mut cp_state, hv_can).unwrap_or_else(|error| {
+        handle_can_error!(tcgd, error, "1000ms_5", cp_state, elapsed);
+    });
 
     // PG2 for read?
     // PG3 for write?
@@ -36,18 +60,13 @@ pub fn init(mut thousand_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HV
 
     thousand_ms_counter
 }
-pub fn usx(hv_can: &HVCAN) {
+
+pub fn usx(hv_can: &HVCAN) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut usx_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
     usx_frame.set_data_length(size.into());
     let usx = usx_frame.data_as_mut();
-
-    let new_id: u16 = 0x000;
-    let mut usy_frame = DataFrame::new(ID::BaseID(BaseID::new(new_id)));
-    usy_frame.set_data_length(size.into());
-    let usy = usy_frame.data_as_mut();
-
     usx[0] = 0x00;
     usx[1] = 0x00;
     usx[2] = 0x00;
@@ -56,8 +75,15 @@ pub fn usx(hv_can: &HVCAN) {
     usx[5] = 0x00;
     usx[6] = 0x00;
     usx[7] = 0x00;
-    hv_can.transmit(&usx_frame.into()).ok();
+    hv_can.transmit(&usx_frame.into())
+}
 
+pub fn usy(hv_can: &HVCAN) -> Result<(), CanError> {
+    let new_id: u16 = 0x000;
+    let size: u8 = 8;
+    let mut usy_frame = DataFrame::new(ID::BaseID(BaseID::new(new_id)));
+    usy_frame.set_data_length(size.into());
+    let usy = usy_frame.data_as_mut();
     usy[0] = 0x00;
     usy[1] = 0x00;
     usy[2] = 0x00;
@@ -66,10 +92,10 @@ pub fn usx(hv_can: &HVCAN) {
     usy[5] = 0x00;
     usy[6] = 0x00;
     usy[7] = 0x00;
-    hv_can.transmit(&usy_frame.into()).ok();
+    hv_can.transmit(&usy_frame.into())
 }
 
-pub fn tto(hv_can: &HVCAN) {
+pub fn tto(hv_can: &HVCAN) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut tto_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -83,10 +109,10 @@ pub fn tto(hv_can: &HVCAN) {
     tto[5] = 0x00;
     tto[6] = 0x00;
     tto[7] = 0x00;
-    hv_can.transmit(&tto_frame.into()).ok();
+    hv_can.transmit(&tto_frame.into())
 }
 
-pub fn rss(hv_can: &HVCAN) {
+pub fn rss(hv_can: &HVCAN) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut rss_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -100,10 +126,10 @@ pub fn rss(hv_can: &HVCAN) {
     rss[5] = 0x00;
     rss[6] = 0x00;
     rss[7] = 0x00;
-    hv_can.transmit(&rss_frame.into()).ok();
+    hv_can.transmit(&rss_frame.into())
 }
 
-pub fn u5(hv_can: &HVCAN) {
+pub fn u5(hv_can: &HVCAN) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut u5_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -117,10 +143,10 @@ pub fn u5(hv_can: &HVCAN) {
     u5[5] = 0x00;
     u5[6] = 0x00;
     u5[7] = 0x00;
-    hv_can.transmit(&u5_frame.into()).ok();
+    hv_can.transmit(&u5_frame.into())
 }
 
-pub fn tcgd(cp_state: &mut CPState, hv_can: &HVCAN) {
+pub fn tcgd(cp_state: &mut CPState, hv_can: &HVCAN) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut tcgd_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -134,5 +160,5 @@ pub fn tcgd(cp_state: &mut CPState, hv_can: &HVCAN) {
     tcgd[5] = 0x00;
     tcgd[6] = 0x00;
     tcgd[7] = 0x00;
-    hv_can.transmit(&tcgd_frame.into()).ok();
+    hv_can.transmit(&tcgd_frame.into())
 }

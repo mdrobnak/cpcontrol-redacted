@@ -2,10 +2,27 @@
 #![allow(clippy::char_lit_as_u8)]
 use crate::types::*;
 
-pub fn init(mut five_hunded_ms_counter: u8, mut cp_state: &mut CPState, hv_can: &HVCAN) -> u8 {
-    vvvm(hv_can);
-    tatata(hv_can, &mut cp_state);
-    u6(hv_can, five_hunded_ms_counter);
+// Logging
+use crate::handle_can_error;
+use heapless::consts::U60;
+use heapless::String;
+use ufmt::uwrite;
+
+pub fn init(
+    elapsed: u32,
+    mut five_hunded_ms_counter: u8,
+    mut cp_state: &mut CPState,
+    hv_can: &HVCAN,
+) -> u8 {
+    vvvm(hv_can).unwrap_or_else(|error| {
+        handle_can_error!(vvvm, error, "500ms_0", cp_state, elapsed);
+    });
+    tatata(hv_can, &mut cp_state).unwrap_or_else(|error| {
+        handle_can_error!(tatata, error, "500ms_1", cp_state, elapsed);
+    });
+    u6(hv_can, five_hunded_ms_counter).unwrap_or_else(|error| {
+        handle_can_error!(u6, error, "500ms_2", cp_state, elapsed);
+    });
     if five_hunded_ms_counter < 255 {
         five_hunded_ms_counter = five_hunded_ms_counter + 1;
     } else {
@@ -15,7 +32,7 @@ pub fn init(mut five_hunded_ms_counter: u8, mut cp_state: &mut CPState, hv_can: 
     five_hunded_ms_counter
 }
 
-pub fn vvvm(hv_can: &HVCAN) {
+pub fn vvvm(hv_can: &HVCAN) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 5;
     let mut vvvm_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -26,10 +43,10 @@ pub fn vvvm(hv_can: &HVCAN) {
     vvvm[2] = 0x00;
     vvvm[3] = 0x00;
     vvvm[4] = 0x00;
-    hv_can.transmit(&vvvm_frame.into()).ok();
+    hv_can.transmit(&vvvm_frame.into())
 }
 
-pub fn tatata(hv_can: &HVCAN, cp_state: &mut CPState) {
+pub fn tatata(hv_can: &HVCAN, cp_state: &mut CPState) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = if cp_state.fw_ver == CPVerEnum::Fw2020 {
         5
@@ -96,10 +113,10 @@ pub fn tatata(hv_can: &HVCAN, cp_state: &mut CPState) {
         tatata[0] |= 0x00;
         tatata[4] = 0x00;
     }
-    hv_can.transmit(&tatata_frame.into()).ok();
+    hv_can.transmit(&tatata_frame.into())
 }
 
-pub fn u6(hv_can: &HVCAN, five_hunded_ms_counter: u8) {
+pub fn u6(hv_can: &HVCAN, five_hunded_ms_counter: u8) -> Result<(), CanError> {
     let id: u16 = 0x000;
     let size: u8 = 8;
     let mut u6_frame = DataFrame::new(ID::BaseID(BaseID::new(id)));
@@ -228,5 +245,5 @@ pub fn u6(hv_can: &HVCAN, five_hunded_ms_counter: u8) {
             u6[7] = 0x00;
         }
     }
-    hv_can.transmit(&u6_frame.into()).ok();
+    hv_can.transmit(&u6_frame.into())
 }
