@@ -8,12 +8,27 @@ use heapless::consts::U60;
 use heapless::String;
 use ufmt::uwrite;
 
+// Semaphore
+use core::cell::Cell;
+use cortex_m::interrupt::{free, Mutex};
+
 pub fn init(
     elapsed: u32,
-    mut hundred_ms_counter: u8,
+    hundred_ms_ptr: &mut u8,
     mut cp_state: &mut CPState,
     hv_can: &HVCAN,
-) -> u8 {
+    semaphore: &Mutex<Cell<bool>>,
+) {
+    free(|cs| {
+        if semaphore.borrow(cs).get() == false {
+            // If this is low, then the GPIO is low.
+            cp_state.cp_init = false;
+        } else {
+            cp_state.cp_init = true;
+        }
+    });
+
+    let hundred_ms_counter: u8 = *hundred_ms_ptr;
     ltbxtxf(hv_can).unwrap_or_else(|error| {
         handle_can_error!(ltbxtxf, error, "100ms_0", cp_state, elapsed);
     });
@@ -54,11 +69,10 @@ pub fn init(
         handle_can_error!(vvvv, error, "100ms_10", cp_state, elapsed);
     });
     if hundred_ms_counter < 255 {
-        hundred_ms_counter = hundred_ms_counter + 1;
+        *hundred_ms_ptr = hundred_ms_counter + 1;
     } else {
-        hundred_ms_counter = 0;
+        *hundred_ms_ptr = 0;
     }
-    hundred_ms_counter
 }
 
 pub fn ltbxtxf(hv_can: &HVCAN) -> Result<(), CanError> {

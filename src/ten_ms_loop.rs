@@ -1,6 +1,5 @@
 #![deny(warnings)]
 use crate::process_init::init as process_init;
-use crate::serial_console::serial_console;
 use crate::types::*;
 
 // Logging
@@ -9,16 +8,8 @@ use heapless::consts::U60;
 use heapless::String;
 use ufmt::uwrite;
 
-pub fn init(
-    mut tx: &mut SerialConsoleOutput,
-    mut cp_state: &mut CPState,
-    elapsed: u32,
-    mut ten_ms_counter: u16,
-    hv_can: &HVCAN,
-    time: rtcc::NaiveDateTime,
-    mut rtc: &mut Rtc,
-    rtc_data: &RTCUpdate,
-) -> u16 {
+pub fn init(mut cp_state: &mut CPState, elapsed: u32, ten_ms_ptr: &mut u16, hv_can: &mut HVCAN) {
+    let ten_ms_counter = *ten_ms_ptr;
     process_init(&mut cp_state, elapsed);
     u1(ten_ms_counter, hv_can).unwrap_or_else(|error| {
         handle_can_error!(u1, error, "10ms_0", cp_state, elapsed);
@@ -40,8 +31,7 @@ pub fn init(
     });
 
     // Check for timeout with CP ECU
-    // FIXME: Temporarily move from 1 to 3.5 second timeout.
-    if (elapsed - cp_state.previous_cptod_ts) > 3500 {
+    if (elapsed - cp_state.previous_cptod_ts) > 1000 {
         // Only log a message if we've transitioned to an OK state before.
         if !cp_state.cp_comm_timeout {
             let mut s: String<U60> = String::new();
@@ -55,25 +45,11 @@ pub fn init(
         cp_state.charge_state = ChargeStateEnum::TimeOut;
     }
 
-    serial_console(
-        &mut tx,
-        &cp_state,
-        elapsed,
-        ten_ms_counter,
-        cp_state.verbose_stats,
-        ten_ms_counter % 3000 == 0 || cp_state.quiet_to_verbose,
-        cp_state.print_menu_request,
-        time,
-        &mut rtc,
-        &rtc_data,
-    );
     if ten_ms_counter < 65535 {
-        ten_ms_counter = ten_ms_counter + 1;
+        *ten_ms_ptr = ten_ms_counter + 1;
     } else {
-        ten_ms_counter = 0;
+        *ten_ms_ptr = 0;
     }
-
-    ten_ms_counter
 }
 
 pub fn u1(ten_ms_counter: u16, hv_can: &HVCAN) -> Result<(), CanError> {

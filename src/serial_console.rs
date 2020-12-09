@@ -9,15 +9,15 @@ pub fn serial_console(
     cp_state: &CPState,
     sys_ticks: u32,
     ten_ms_counter: u16,
-    verbose_console: bool,
-    print_header: bool,
-    print_menu: bool,
     time: rtcc::NaiveDateTime,
     rtc: &mut Rtc,
     rtc_data: &RTCUpdate,
 ) {
     const NO_ATTRIB: &str = "\x1B[0m";
     const ERASE_EOL: &str = "\x1B[0K";
+    let verbose_console = cp_state.verbose_stats;
+    let print_header = ten_ms_counter % 3000 == 0 || cp_state.quiet_to_verbose;
+    let print_menu = cp_state.print_menu_request;
     if cp_state.rtc_update {
         set_rtc(tx, rtc, rtc_data, ten_ms_counter);
     } else if verbose_console {
@@ -25,7 +25,7 @@ pub fn serial_console(
             print_header_to_serial(tx, verbose_console);
         }
 
-        if ten_ms_counter % 10 == 0 {
+        if ten_ms_counter % 10 <= 3 {
             let mut line = 15;
             for i in cp_state.activity_list.iter() {
                 uprintln!(tx, "\x1B[{};3H{}{}\x1B[{};64H|", line, i, ERASE_EOL, line);
@@ -33,7 +33,7 @@ pub fn serial_console(
             }
         }
 
-        if ten_ms_counter % 50 == 0 {
+        if ten_ms_counter % 50 <= 3 {
             uprintln!(
                 tx,
                 "\x1B[20HCP Ver: {:X}\x1B[20;20HCP Msg Type: {}\x1B[20;40HVehicle Locked: {}",
@@ -89,7 +89,7 @@ pub fn serial_console(
         uprint!(tx, "\x1B[22HState: {}{}", cp_state.charge_state, ERASE_EOL);
         uprintln!(tx, "\x1B[22;30HCAN Loop Status: Probably Fine.");
         uprintln!(tx, "\x1B[23HTime: {}", time);
-    } else if ten_ms_counter % 50 == 0 {
+    } else if ten_ms_counter % 50 <= 3 {
         if print_menu {
             print_header_to_serial(tx, verbose_console);
         } else if print_header {
@@ -145,7 +145,7 @@ pub fn set_rtc(
     rtc_data: &RTCUpdate,
     ten_ms_counter: u16,
 ) {
-    if ten_ms_counter % 10 == 0 {
+    if ten_ms_counter % 10 <= 3 {
         uprintln!(tx, "\x1B[2H1. Year:   {}", rtc.get_year().unwrap());
         uprintln!(tx, "\x1B[3H2. Month:  {}", rtc.get_month().unwrap());
         uprintln!(tx, "\x1B[4H3. Day:    {}", rtc.get_day().unwrap());

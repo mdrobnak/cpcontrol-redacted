@@ -10,26 +10,25 @@ use ufmt::uwrite;
 
 pub fn init(
     elapsed: u32,
-    mut five_hunded_ms_counter: u8,
+    five_hundred_ms_ptr: &mut u8,
     mut cp_state: &mut CPState,
     hv_can: &HVCAN,
-) -> u8 {
+) {
+    let five_hundred_ms_counter = *five_hundred_ms_ptr;
     vvvm(hv_can).unwrap_or_else(|error| {
         handle_can_error!(vvvm, error, "500ms_0", cp_state, elapsed);
     });
     tatata(hv_can, &mut cp_state).unwrap_or_else(|error| {
         handle_can_error!(tatata, error, "500ms_1", cp_state, elapsed);
     });
-    u6(hv_can, five_hunded_ms_counter).unwrap_or_else(|error| {
+    u6(hv_can, five_hundred_ms_counter).unwrap_or_else(|error| {
         handle_can_error!(u6, error, "500ms_2", cp_state, elapsed);
     });
-    if five_hunded_ms_counter < 255 {
-        five_hunded_ms_counter = five_hunded_ms_counter + 1;
+    if five_hundred_ms_counter < 255 {
+        *five_hundred_ms_ptr = five_hundred_ms_counter + 1;
     } else {
-        five_hunded_ms_counter = 0;
+        *five_hundred_ms_ptr = 0;
     }
-
-    five_hunded_ms_counter
 }
 
 pub fn vvvm(hv_can: &HVCAN) -> Result<(), CanError> {

@@ -200,7 +200,7 @@ impl CPState {
             rtc_update: false,
             tcgz: 0x60,
             vehicle_locked: false,
-            verbose_stats: false,
+            verbose_stats: true,
         }
     }
 }
@@ -226,6 +226,7 @@ mod abstractions {
     use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
     use hal::pac::CAN1;
     pub type HVCAN = Can<CAN1, (PD1<Alternate<AF9>>, PD0<Alternate<AF9>>)>;
+    pub type SerialConsoleInput = hal::serial::Rx<hal::pac::USART3>;
     pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART3>;
     pub type FaultLinePin = PG2<Input<Floating>>;
     pub type LatchOutPin = PG3<Output<PushPull>>;
@@ -240,6 +241,7 @@ mod abstractions {
     use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
     use hal::pac::CAN1;
     pub type HVCAN = Can<CAN1, (PB9<Alternate<AF9>>, PB8<Alternate<AF9>>)>;
+    pub type SerialConsoleInput = hal::serial::Rx<hal::pac::USART2>;
     pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART2>;
     pub type FaultLinePin = PB3<Input<Floating>>;
     pub type LatchOutPin = PB5<Output<PushPull>>;
@@ -255,12 +257,14 @@ mod abstractions {
     use hal::gpio::{Alternate, Floating, Input, Output, PushPull};
     use hal::pac::CAN1;
     pub type HVCAN = Can<CAN1, (PB9<Alternate<AF9>>, PB8<Alternate<AF9>>)>;
+    pub type SerialConsoleInput = hal::serial::Rx<hal::pac::USART2>;
     pub type SerialConsoleOutput = hal::serial::Tx<hal::pac::USART2>;
     pub type FaultLinePin = PB3<Input<Floating>>;
     pub type LatchOutPin = PB5<Output<PushPull>>;
 }
 
 pub type HVCAN = abstractions::HVCAN;
+pub type SerialConsoleInput = abstractions::SerialConsoleInput;
 pub type SerialConsoleOutput = abstractions::SerialConsoleOutput;
 pub type FaultLinePin = abstractions::FaultLinePin;
 pub type LatchOutPin = abstractions::LatchOutPin;

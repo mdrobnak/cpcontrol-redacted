@@ -7,12 +7,8 @@ use heapless::consts::U60;
 use heapless::String;
 use ufmt::uwrite;
 
-pub fn init(
-    elapsed: u32,
-    mut thousand_ms_counter: u8,
-    mut cp_state: &mut CPState,
-    hv_can: &HVCAN,
-) -> u8 {
+pub fn init(elapsed: u32, thousand_ms_ptr: &mut u8, mut cp_state: &mut CPState, hv_can: &HVCAN) {
+    let thousand_ms_counter = *thousand_ms_ptr;
     usx(hv_can).unwrap_or_else(|error| {
         handle_can_error!(usx, error, "1000ms_0", cp_state, elapsed);
     });
@@ -34,31 +30,17 @@ pub fn init(
 
     // PG2 for read?
     // PG3 for write?
-    /*
-    faultLineVoltage = analogRead(IN1);
-    if ((faultLineVoltage <= 6) and (cp_init == true))
-    {
-    initCount++;
-    }
-    else if (initCount > 8)
-    {
-    cp_init = false;
-    initCount = 0;
-    }
-    return faultLineVoltage;
-    */
     if thousand_ms_counter < 255 {
-        thousand_ms_counter = thousand_ms_counter + 1;
+        *thousand_ms_ptr = thousand_ms_counter + 1;
     } else {
-        thousand_ms_counter = 0;
+        *thousand_ms_ptr = 0;
     }
+
     if cp_state.tcgz < 255 {
         cp_state.tcgz = cp_state.tcgz + 1;
     } else {
         cp_state.tcgz = 0x60;
     }
-
-    thousand_ms_counter
 }
 
 pub fn usx(hv_can: &HVCAN) -> Result<(), CanError> {

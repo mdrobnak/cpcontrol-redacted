@@ -8,7 +8,8 @@ use heapless::consts::U60;
 use heapless::String;
 use ufmt::uwrite;
 
-pub fn init(elapsed: u32, mut fifty_ms_counter: u8, hv_can: &HVCAN, cp_state: &mut CPState) -> u8 {
+pub fn init(elapsed: u32, fifty_ms_ptr: &mut u8, cp_state: &mut CPState, hv_can: &HVCAN) {
+    let fifty_ms_counter: u8 = *fifty_ms_ptr;
     let fifty_ms_checksum_count: u8 = fifty_ms_counter % 16;
     p2(hv_can, fifty_ms_checksum_count, cp_state).unwrap_or_else(|error| {
         handle_can_error!(p2, error, "50ms_0", cp_state, elapsed);
@@ -17,12 +18,10 @@ pub fn init(elapsed: u32, mut fifty_ms_counter: u8, hv_can: &HVCAN, cp_state: &m
         handle_can_error!(u7, error, "50ms_1", cp_state, elapsed);
     });
     if fifty_ms_counter < 255 {
-        fifty_ms_counter = fifty_ms_counter + 1;
+        *fifty_ms_ptr = fifty_ms_counter + 1;
     } else {
-        fifty_ms_counter = 0;
+        *fifty_ms_ptr = 0;
     }
-
-    fifty_ms_counter
 }
 
 pub fn p2(

@@ -1,6 +1,6 @@
 [package]
 name = "cpcontrol"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Matthew Drobnak <matthew@drobnak.com>"]
 edition = "2018"
 
@@ -35,6 +35,7 @@ arraydeque = { version = "0.4.5", default-features = false }
 chrono = { version = "0.4.19", default-features = false }
 cortex-m = "0.6.2"
 cortex-m-rt = "0.6.12"
+cortex-m-rtic = "0.5"
 panic-halt = "0.2.0"
 rtcc = "0.2"
 ufmt = "0.1.0"
@@ -54,3 +55,14 @@ git = "https://github.com/mdrobnak/stm32f4xx-hal.git"
 features = ["rt"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+opt-level = 3
+debug = true
+debug-assertions = false
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+rpath = false

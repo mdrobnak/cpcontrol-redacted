@@ -1,4 +1,4 @@
-//#![deny(warnings)]
+#![deny(warnings)]
 #[cfg(feature = "nucleof767zi")]
 extern crate stm32f7xx_hal as hal;
 
@@ -20,12 +20,7 @@ use hal::serial::Config;
 use hal::serial::config::Config;
 
 use cortex_m::peripheral::NVIC;
-use hal::{
-    interrupt, pac,
-    prelude::*,
-    serial::Serial,
-    timer::{Event, Timer},
-};
+use hal::{interrupt, pac, prelude::*, serial::Serial};
 
 use hal::gpio::Alternate;
 use hal::gpio::AF7;
@@ -60,7 +55,9 @@ pub fn enable_interrupts() {
 }
 
 #[cfg(feature = "nucleof767zi")]
-pub fn init_devices() -> (
+pub fn init_devices(
+    mut p: hal::pac::Peripherals,
+) -> (
     FaultLinePin,
     LatchOutPin,
     HVCAN,
@@ -71,8 +68,8 @@ pub fn init_devices() -> (
             hal::gpio::gpiod::PD9<Alternate<AF7>>,
         ),
     >,
-    hal::timer::Timer<pac::TIM2>,
     hal::rtc::Rtc,
+    f32,
 ) {
     // Hardware to initialize:
     // Fault Input
@@ -80,7 +77,6 @@ pub fn init_devices() -> (
     // CAN Tx, Rx
     // Serial port
     // TIM2
-    let mut p = pac::Peripherals::take().unwrap();
     let mut syscfg = p.SYSCFG;
     let mut exti = p.EXTI;
 
@@ -112,6 +108,7 @@ pub fn init_devices() -> (
         .sysclk(180.mhz())
         .freeze();
 
+    let clock = 180_000_000.0;
     // AF7 -> Alternate Function 7 -> USART for PD8/9.
     let tx_pin = gpiod.pd8.into_alternate_af7();
     let rx_pin = gpiod.pd9.into_alternate_af7();
@@ -125,10 +122,6 @@ pub fn init_devices() -> (
             character_match: None,
         },
     );
-
-    // Timer
-    let mut timer = Timer::tim2(p.TIM2, 1.khz(), clocks, &mut rcc.apb1);
-    timer.listen(Event::TimeOut);
 
     // -- CAN BUS --
     // Set up CAN bit timing.
@@ -175,7 +168,7 @@ pub fn init_devices() -> (
         &mut p.PWR,
     );
 
-    return (fault_in, latch_out, hv_can, serial, timer, rtc);
+    return (fault_in, latch_out, hv_can, serial, rtc, clock);
 }
 
 #[cfg(any(
@@ -183,19 +176,21 @@ pub fn init_devices() -> (
     feature = "production",
     feature = "twentyfour",
 ))]
-pub fn init_devices() -> (
+pub fn init_devices(
+    mut p: hal::pac::Peripherals,
+) -> (
     FaultLinePin,
     LatchOutPin,
     HVCAN,
     hal::serial::Serial<
         hal::stm32::USART2,
         (
-            hal::gpio::gpioa::PA2<hal::gpio::Alternate<AF7>>,
+            hal::gpio::gpioa::PA2<Alternate<AF7>>,
             hal::gpio::gpioa::PA3<Alternate<AF7>>,
         ),
     >,
-    hal::timer::Timer<hal::stm32::TIM2>,
     hal::rtc::Rtc,
+    f32,
 ) {
     // Hardware to initialize:
     // Fault Input
@@ -204,7 +199,6 @@ pub fn init_devices() -> (
     // Serial port
     // TIM2
     // RTC
-    let mut p = pac::Peripherals::take().unwrap();
     let mut syscfg = p.SYSCFG;
     let mut exti = p.EXTI;
 
@@ -224,8 +218,13 @@ pub fn init_devices() -> (
     let mut rcc = p.RCC.constrain();
     #[cfg(feature = "nucleof446re")]
     let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(180.mhz()).freeze();
+    #[cfg(feature = "nucleof446re")]
+    let clock = 180_000_000.0;
+
     #[cfg(any(feature = "production", feature = "twentyfour",))]
     let clocks = rcc.cfgr.use_hse(8.mhz()).sysclk(160.mhz()).freeze();
+    #[cfg(any(feature = "production", feature = "twentyfour",))]
+    let clock = 160_000_000.0;
 
     let gpioa = p.GPIOA.split();
     let tx_pin = gpioa.pa2.into_alternate_af7();
@@ -237,10 +236,6 @@ pub fn init_devices() -> (
         clocks,
     )
     .unwrap();
-
-    // Timer
-    let mut timer = Timer::tim2(p.TIM2, 1.khz(), clocks);
-    timer.listen(Event::TimeOut);
 
     // -- CAN BUS --
     // Set up CAN bit timing.
@@ -308,5 +303,5 @@ pub fn init_devices() -> (
         &mut p.PWR,
     );
 
-    return (fault_in, latch_out, hv_can, serial, timer, rtc);
+    return (fault_in, latch_out, hv_can, serial, rtc, clock);
 }

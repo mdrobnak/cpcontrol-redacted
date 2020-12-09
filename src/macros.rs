@@ -66,3 +66,10 @@ macro_rules! handle_can_error {
         }
     };
 }
+
+#[macro_export]
+macro_rules!sched {
+    ($context:ident, $now:ident, [$($interval:tt),*]) => {
+        $($context.schedule.$interval($now + $interval.cycles(), $interval).unwrap();)*
+    };
+}

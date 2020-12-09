@@ -12,17 +12,23 @@ use ufmt::uwrite;
 pub fn init(
     command: u8,
     elapsed: u32,
-    mut cp_state: CPState,
+    mut cp_state: &mut CPState,
     mut tx: &mut SerialConsoleOutput,
     mut rtc: &mut Rtc,
     mut rtc_data: &mut RTCUpdate,
-) -> CPState {
+) {
     if cp_state.rtc_update {
-        cp_state = rtc_input(command, elapsed, cp_state, &mut tx, &mut rtc, &mut rtc_data);
+        rtc_input(
+            command,
+            elapsed,
+            &mut cp_state,
+            &mut tx,
+            &mut rtc,
+            &mut rtc_data,
+        );
     } else {
-        cp_state = normal_input(command, elapsed, cp_state, &mut tx);
+        normal_input(command, elapsed, &mut cp_state, &mut tx);
     }
-    cp_state
 }
 pub fn parse_rtc(
     tx: &mut SerialConsoleOutput,
@@ -51,11 +57,11 @@ pub fn parse_rtc(
 pub fn rtc_input(
     command: u8,
     _elapsed: u32,
-    mut cp_state: CPState,
+    mut cp_state: &mut CPState,
     tx: &mut SerialConsoleOutput,
     rtc: &mut Rtc,
     mut rtc_data: &mut RTCUpdate,
-) -> CPState {
+) {
     // Check if there's an update in progress already
     let mut date_uip = rtc_data.y_uip || rtc_data.m_uip || rtc_data.d_uip;
     let mut time_uip = rtc_data.h_uip || rtc_data.min_uip || rtc_data.s_uip;
@@ -187,14 +193,13 @@ pub fn rtc_input(
             _ => {}
         }
     }
-    cp_state
 }
 pub fn normal_input(
     command: u8,
     elapsed: u32,
-    mut cp_state: CPState,
+    mut cp_state: &mut CPState,
     tx: &mut SerialConsoleOutput,
-) -> CPState {
+) {
     match command {
         // a
         0x61 => {
@@ -306,5 +311,4 @@ pub fn normal_input(
             cp_state.activity_list.push_back(s);
         }
     }
-    cp_state
 }
